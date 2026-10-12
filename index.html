@@ -275,6 +275,7 @@
     .photo-sheet h2 { margin: 0 0 5mm; color: var(--green-dark); font-size: 16pt; }
     .photo-sheet p { margin: 0 0 5mm; color: var(--muted); }
     .photo-sheet .photo-backlink-hint { margin-top: -2mm; color: var(--green-dark); font-size: 9pt; font-weight: 700; }
+    .photo-sheet .appendix-return-link { display: inline-block; margin: -2mm 0 4mm; color: var(--green-dark); font-size: 9pt; font-weight: 800; text-decoration: underline; }
     .photo-sheet .appendix-backlink { display: block; color: inherit; text-decoration: none; cursor: pointer; }
     .photo-sheet img { display: block; width: 100%; max-height: 230mm; object-fit: contain; }
     .photo-sheet.equipment-photo img { max-height: 215mm; padding: 1mm; border: 3mm solid var(--photo-status-color, var(--green)); border-radius: 3mm; }
@@ -340,7 +341,7 @@
     @media print {
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body { background: #fff; font-size: 10pt; }
-      .toolbar, .regulatory-editor, .tabs, .section-tabs, .item-footer, .add-row, #addYellowTab, .save-state, .toast, .photo-label, .photo-help, .cover-photo-remove, .item-collapse-toggle .chevron, .menu-trigger, .conformity-help-button, .help-dialog { display: none !important; }
+      .toolbar, .regulatory-editor, .tabs, .section-tabs, .item-footer, .add-row, #addYellowTab, .save-state, .toast, .photo-label, .photo-help, .cover-photo-remove, .thumb-remove, .item-collapse-toggle .chevron, .menu-trigger, .conformity-help-button, .help-dialog { display: none !important; }
       .page { width: 100%; }
       .hero { height: 262mm; padding: 4mm 8mm 16mm; overflow: hidden; break-after: page; page-break-after: always; }
       .hero .page { height: 100%; min-height: 0; display: flex; flex-direction: column; }
@@ -999,10 +1000,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           sheet.className=`photo-sheet${entry.item?' equipment-photo':''}`;sheet.id=`photo-${entry.photoId}`;
           if(entry.item){sheet.dataset.status=entry.item.status;sheet.style.setProperty('--photo-status-color',statusColor(entry.item.status));}
           title.textContent=entry.item?`Matériel : ${name}`:name;
-          context.textContent=[entry.section.name,entry.item?.brand,entry.item?.model,entry.item?.serialNumber&&`N° de série ${entry.item.serialNumber}`,entry.item?.location,entry.item&&statusLabel(entry.item.status),`Photo ${entry.index+1}`].filter(Boolean).join(' · ');
+          context.textContent=[entry.section.name,entry.item?.brand&&`Marque : ${entry.item.brand}`,entry.item?.model&&`Modèle : ${entry.item.model}`,entry.item?.serialNumber&&`N° de série : ${entry.item.serialNumber}`,entry.item?.location&&`Localisation : ${entry.item.location}`,entry.item&&statusLabel(entry.item.status),`Photo ${entry.index+1}`].filter(Boolean).join(' · ');
           img.src=url;img.alt=`${name} - photo ${entry.index+1}`;
           if(entry.item){
-            const safeItemId=entry.item.id.replace(/[^a-zA-Z0-9_-]/g,''),backlink=document.createElement('a'),hint=document.createElement('p');backlink.className='appendix-backlink';backlink.href=`#equipment-${safeItemId}`;backlink.title=`Revenir au descriptif de ${name}`;backlink.setAttribute('aria-label',`Revenir au descriptif de ${name}`);backlink.append(img);hint.className='photo-backlink-hint';hint.textContent='Cliquer sur la photo pour revenir au descriptif de cet équipement.';sheet.append(title,context,hint,backlink);
+            const safeItemId=entry.item.id.replace(/[^a-zA-Z0-9_-]/g,''),target=`#equipment-${safeItemId}`,backlink=document.createElement('a'),returnLink=document.createElement('a');backlink.className='appendix-backlink';backlink.href=target;backlink.title=`Revenir au descriptif de ${name}`;backlink.setAttribute('aria-label',`Revenir au descriptif de ${name}`);backlink.append(img);returnLink.className='appendix-return-link';returnLink.href=target;returnLink.textContent='↩ Revenir au descriptif de cet équipement';sheet.append(title,context,returnLink,backlink);
           }else sheet.append(title,context,img);
           appendix.append(sheet);
         }
