@@ -274,6 +274,8 @@
     .photo-sheet { text-align: center; }
     .photo-sheet h2 { margin: 0 0 5mm; color: var(--green-dark); font-size: 16pt; }
     .photo-sheet p { margin: 0 0 5mm; color: var(--muted); }
+    .photo-sheet .photo-backlink-hint { margin-top: -2mm; color: var(--green-dark); font-size: 9pt; font-weight: 700; }
+    .photo-sheet .appendix-backlink { display: block; color: inherit; text-decoration: none; cursor: pointer; }
     .photo-sheet img { display: block; width: 100%; max-height: 230mm; object-fit: contain; }
     .photo-sheet.equipment-photo img { max-height: 215mm; padding: 1mm; border: 3mm solid var(--photo-status-color, var(--green)); border-radius: 3mm; }
     .save-state {
@@ -934,6 +936,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         node.dataset.itemId = item.id; node.dataset.status = item.status;
         const title = node.querySelector('.equipment'), summary = node.querySelector('.summary'), equipmentInput=node.querySelector('[data-key="equipment"]'), brandInput = node.querySelector('[data-key="brand"]'), modelInput=node.querySelector('[data-key="model"]'), equipmentList=document.createElement('datalist'),brandList = document.createElement('datalist'),modelList=document.createElement('datalist');
         const safeId=item.id.replace(/[^a-zA-Z0-9_-]/g,'');
+        node.id=`equipment-${safeId}`;
         equipmentList.id=`equipment-list-${safeId}`;equipmentList.replaceChildren(...equipmentCatalog.map(value=>{const option=document.createElement('option');option.value=value;return option;}));equipmentInput.setAttribute('list',equipmentList.id);equipmentInput.after(equipmentList);
         brandList.id=`brand-list-${item.id.replace(/[^a-zA-Z0-9_-]/g,'')}`;brandInput.setAttribute('list',brandList.id);brandInput.after(brandList);
         modelList.id=`model-list-${item.id.replace(/[^a-zA-Z0-9_-]/g,'')}`;modelInput.setAttribute('list',modelList.id);modelInput.after(modelList);
@@ -990,7 +993,19 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         appendixObjectUrls.forEach(url=>URL.revokeObjectURL(url));appendixObjectUrls=[];
         const appendix=document.getElementById('photoAppendix');appendix.replaceChildren();
         const entries=data.sections.flatMap(section=>[...section.photos.map((photoId,index)=>({photoId,index,section,item:null})),...section.items.flatMap(item=>item.photos.map((photoId,index)=>({photoId,index,item,section})))]);
-        for(const entry of entries){const blob=await getPhoto(entry.photoId);if(!blob)continue;const sheet=document.createElement('article'),title=document.createElement('h2'),context=document.createElement('p'),img=document.createElement('img'),url=URL.createObjectURL(blob),name=entry.item?.equipment||'Photo de la localisation';appendixObjectUrls.push(url);sheet.className=`photo-sheet${entry.item?' equipment-photo':''}`;sheet.id=`photo-${entry.photoId}`;if(entry.item){sheet.dataset.status=entry.item.status;sheet.style.setProperty('--photo-status-color',statusColor(entry.item.status));}title.textContent=name;context.textContent=[entry.section.name,entry.item?.location,entry.item&&statusLabel(entry.item.status),`Photo ${entry.index+1}`].filter(Boolean).join(' · ');img.src=url;img.alt=`${name} - photo ${entry.index+1}`;sheet.append(title,context,img);appendix.append(sheet);}
+        for(const entry of entries){
+          const blob=await getPhoto(entry.photoId);if(!blob)continue;
+          const sheet=document.createElement('article'),title=document.createElement('h2'),context=document.createElement('p'),img=document.createElement('img'),url=URL.createObjectURL(blob),name=entry.item?.equipment||'Photo de la localisation';appendixObjectUrls.push(url);
+          sheet.className=`photo-sheet${entry.item?' equipment-photo':''}`;sheet.id=`photo-${entry.photoId}`;
+          if(entry.item){sheet.dataset.status=entry.item.status;sheet.style.setProperty('--photo-status-color',statusColor(entry.item.status));}
+          title.textContent=entry.item?`Matériel : ${name}`:name;
+          context.textContent=[entry.section.name,entry.item?.brand,entry.item?.model,entry.item?.serialNumber&&`N° de série ${entry.item.serialNumber}`,entry.item?.location,entry.item&&statusLabel(entry.item.status),`Photo ${entry.index+1}`].filter(Boolean).join(' · ');
+          img.src=url;img.alt=`${name} - photo ${entry.index+1}`;
+          if(entry.item){
+            const safeItemId=entry.item.id.replace(/[^a-zA-Z0-9_-]/g,''),backlink=document.createElement('a'),hint=document.createElement('p');backlink.className='appendix-backlink';backlink.href=`#equipment-${safeItemId}`;backlink.title=`Revenir au descriptif de ${name}`;backlink.setAttribute('aria-label',`Revenir au descriptif de ${name}`);backlink.append(img);hint.className='photo-backlink-hint';hint.textContent='Cliquer sur la photo pour revenir au descriptif de cet équipement.';sheet.append(title,context,hint,backlink);
+          }else sheet.append(title,context,img);
+          appendix.append(sheet);
+        }
       }
       function openViewer(url){ const d = document.getElementById('photoViewer'); d.querySelector('img').src = url; d.showModal(); }
       async function renderCoverPhoto(){
