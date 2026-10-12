@@ -270,7 +270,7 @@
     .pie-legend-row strong { font-variant-numeric: tabular-nums; }
     .summary-empty { color: var(--muted); text-align: center !important; }
     .photo-appendix { display: none; }
-    .print-project-footer, .print-field-value { display: none; }
+    .print-project-footer, .print-field-value, .print-remark-value { display: none; }
     .photo-sheet { text-align: center; }
     .photo-sheet h2 { margin: 0 0 5mm; color: var(--green-dark); font-size: 16pt; }
     .photo-sheet p { margin: 0 0 5mm; color: var(--muted); }
@@ -379,12 +379,15 @@
       .pane { display: block !important; padding-top: 5px; padding-bottom: 5px; }
       .pane[data-pane="photos"]:has(.empty-photos) { display: none !important; }
       .section-pane[data-section-pane="photos"]:has(.empty-photos) { display: none !important; }
+      .pane[data-pane="remark"]:has(.print-remark-value:empty), .section-pane[data-section-pane="remark"]:has(.print-remark-value:empty) { display: none !important; }
+      .pane[data-pane="remark"] textarea, .section-pane[data-section-pane="remark"] textarea { display: none !important; }
       input, select, textarea { border-color: #888 !important; }
       .item[data-status="ok"] .status-select { border-left-color: var(--green) !important; }
       .item[data-status="vigilance"] .status-select { border-left-color: var(--amber) !important; }
       .item[data-status="solution"] .status-select { border-left-color: var(--red) !important; }
       .conformity-choice, .conformity-remark { display: none !important; }
       .print-field-value { display: block; min-height: 24px; padding: 5px 6px; border: 1px solid #777; border-radius: 4px; background: #fff; white-space: pre-wrap; overflow-wrap: anywhere; }
+      .print-remark-value { display: block; width: 100%; padding: 7px 8px; border: 1px solid #777; border-radius: 4px; background: #fff; font-size: 9pt; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
       .thumbs { grid-template-columns: repeat(5, 1fr); }
       .report-summary { break-before: page; box-shadow: none; border-radius: 0; }
       .summary-table-wrap { overflow: visible; }
@@ -520,7 +523,7 @@
           <button class="section-tab" data-section-tab="photos" type="button">Photos <span class="section-photo-count"></span></button>
         </div>
         <div class="section-pane active" data-section-pane="equipment"><div class="items"></div><button class="btn add-row" type="button">＋ Ajouter un équipement</button></div>
-        <div class="section-pane" data-section-pane="remark"><div class="field"><label>Remarque sur la localisation</label><textarea class="section-remark" placeholder="Saisissez vos observations sur cette localisation…"></textarea></div></div>
+        <div class="section-pane" data-section-pane="remark"><div class="field"><label>Remarque sur la localisation</label><textarea class="section-remark" placeholder="Saisissez vos observations sur cette localisation…"></textarea><div class="print-remark-value section-remark-print"></div></div></div>
         <div class="section-pane" data-section-pane="photos"><div class="photo-actions"><label class="photo-label">📷 Ajouter une photo<input class="section-photo-input" type="file" accept="image/*" capture="environment" multiple></label><span class="photo-help">Vous pouvez ajouter plusieurs photos de la localisation.</span></div><div class="thumbs section-thumbs"></div></div>
         <section class="conformity-card">
           <button class="conformity-title" type="button" aria-expanded="true"><strong>CONFORMITÉ</strong><span class="chevron" aria-hidden="true">⌄</span></button>
@@ -553,7 +556,7 @@
           <div class="field wide"><label>Criticité</label><select class="status-select" data-key="status"><option value="ok">Élément satisfaisant</option><option value="vigilance">Point de vigilance</option><option value="solution">Solution requise</option></select></div>
         </div>
       </div>
-      <div class="pane" data-pane="remark"><div class="field"><label>Remarque technique</label><textarea data-key="remark" placeholder="Saisissez vos observations…"></textarea></div></div>
+      <div class="pane" data-pane="remark"><div class="field"><label>Remarque technique</label><textarea data-key="remark" placeholder="Saisissez vos observations…"></textarea><div class="print-remark-value item-remark-print"></div></div></div>
       <div class="pane" data-pane="photos">
         <div class="photo-actions">
           <label class="photo-label">📷 Prendre une photo<input class="photo-input" type="file" accept="image/*" capture="environment"></label>
@@ -891,7 +894,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           const sectionName = node.querySelector('.section-name-input'); sectionName.value = section.name;
           sectionName.addEventListener('input', () => { section.name = sectionName.value; node.querySelector('.conformity-card').hidden=normalizeLocation(section.name)==='EXTÉRIEUR'; save(); renderSummary(); renderPhotoAppendix(); });
           sectionName.addEventListener('change',()=>{section.name=normalizeLocation(sectionName.value);save();render();});
-          const sectionRemark=node.querySelector('.section-remark');sectionRemark.value=section.remark||'';sectionRemark.addEventListener('input',()=>{section.remark=sectionRemark.value;save();});
+          const sectionRemark=node.querySelector('.section-remark'),sectionRemarkPrint=node.querySelector('.section-remark-print');sectionRemark.value=section.remark||'';sectionRemarkPrint.textContent=section.remark||'';sectionRemark.addEventListener('input',()=>{section.remark=sectionRemark.value;sectionRemarkPrint.textContent=section.remark;save();});
           node.querySelectorAll('.section-tab').forEach(tab=>tab.addEventListener('click',()=>{node.querySelectorAll('.section-tab,.section-pane').forEach(element=>element.classList.remove('active'));tab.classList.add('active');node.querySelector(`[data-section-pane="${tab.dataset.sectionTab}"]`).classList.add('active');}));
           node.querySelector('.item-count').textContent = `${section.items.length} élément${section.items.length > 1 ? 's' : ''}`;
           node.querySelector('.section-toggle').addEventListener('click', () => node.classList.toggle('collapsed'));
@@ -938,6 +941,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           const key = control.dataset.key; control.value = item[key] ?? '';
           control.addEventListener('input', () => { item[key] = control.value; refresh(); save(); renderSummary(); if(key==='equipment'||key==='location')renderPhotoAppendix(); });
         });
+        const itemRemarkInput=node.querySelector('[data-key="remark"]'),itemRemarkPrint=node.querySelector('.item-remark-print');itemRemarkPrint.textContent=item.remark||'';itemRemarkInput.addEventListener('input',()=>{itemRemarkPrint.textContent=itemRemarkInput.value;});
         node.querySelector('.item-collapse-toggle').addEventListener('click',()=>{const collapsed=node.classList.toggle('collapsed');node.querySelector('.item-collapse-toggle').setAttribute('aria-expanded',String(!collapsed));});
         node.querySelectorAll('.tab').forEach(tab => tab.addEventListener('click', () => {
           node.querySelectorAll('.tab,.pane').forEach(e => e.classList.remove('active'));
