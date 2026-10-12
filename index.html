@@ -387,6 +387,10 @@
       .item[data-status="solution"] .status-select { border-left-color: var(--red) !important; }
       .conformity-choice, .conformity-remark { display: none !important; }
       .print-field-value { display: block; min-height: 24px; padding: 5px 6px; border: 1px solid #777; border-radius: 4px; background: #fff; white-space: pre-wrap; overflow-wrap: anywhere; }
+      .conformity-table tr[data-conformity-status="valid"] td { background: #dff3e7 !important; border-color: #79b68f !important; }
+      .conformity-table tr[data-conformity-status="valid"] .print-field-value { border-color: #16834a; background: #effaf3; color: #075c2e; font-weight: 800; }
+      .conformity-table tr[data-conformity-status="invalid"] td { background: #fbe0e0 !important; border-color: #d47c7c !important; }
+      .conformity-table tr[data-conformity-status="invalid"] .print-field-value { border-color: #bd2f2f; background: #fff0f0; color: #9d1e1e; font-weight: 800; }
       .print-remark-value { display: block; width: 100%; padding: 7px 8px; border: 1px solid #777; border-radius: 4px; background: #fff; font-size: 9pt; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
       .thumbs { grid-template-columns: repeat(5, 1fr); }
       .report-summary { break-before: page; box-shadow: none; border-radius: 0; }
@@ -920,7 +924,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           [['','Choisir…'],['valid','V — Validé'],['na','Non concerné'],['invalid','✕ — Non conforme']].forEach(([value,label])=>{const option=document.createElement('option');option.value=value;option.textContent=label;select.append(option);});
           const statusPrint=document.createElement('span');statusPrint.className='print-field-value';
           const refreshStatusPrint=()=>{statusPrint.textContent=select.options[select.selectedIndex]?.textContent||'—';};
-          select.value=check.status;refreshStatusPrint();select.addEventListener('change',()=>{check.status=select.value;select.dataset.value=select.value;refreshStatusPrint();save();});
+          const refreshRowStatus=()=>{tr.dataset.conformityStatus=select.value||'';};select.value=check.status;refreshStatusPrint();refreshRowStatus();select.addEventListener('change',()=>{check.status=select.value;select.dataset.value=select.value;refreshStatusPrint();refreshRowStatus();save();});
           const remark=document.createElement('input'),remarkPrint=document.createElement('span');remark.className='conformity-remark';remark.type='text';remark.value=check.remark;remark.placeholder='Saisir une remarque';remark.setAttribute('aria-label',`Remarque : ${check.point}`);remarkPrint.className='print-field-value';remarkPrint.textContent=check.remark||'—';remark.addEventListener('input',()=>{check.remark=remark.value;remarkPrint.textContent=remark.value||'—';save();});
           statusCell.append(select,statusPrint);remarkCell.append(remark,remarkPrint);tr.append(family,point,statusCell,remarkCell);body.append(tr);
         });
