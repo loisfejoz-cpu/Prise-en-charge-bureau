@@ -154,6 +154,9 @@
     .section-content { padding: 10px; }
     .section.collapsed .section-content { display: none; }
     .section.collapsed .chevron { transform: rotate(-90deg); }
+    .section-actions { display: flex; justify-content: space-between; gap: 9px; flex-wrap: wrap; padding: 12px 14px 0; }
+    .section-actions .btn { min-height: 40px; padding: 8px 12px; }
+    .add-conformity[hidden] { display: none !important; }
     .chevron { transition: transform .2s ease; }
     .item {
       position: relative; margin: 0 0 10px; overflow: hidden;
@@ -341,7 +344,7 @@
     @media print {
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body { background: #fff; font-size: 10pt; }
-      .toolbar, .regulatory-editor, .tabs, .section-tabs, .item-footer, .add-row, #addYellowTab, .save-state, .toast, .photo-label, .photo-help, .cover-photo-remove, .thumb-remove, .item-collapse-toggle .chevron, .menu-trigger, .conformity-help-button, .help-dialog { display: none !important; }
+      .toolbar, .regulatory-editor, .tabs, .section-tabs, .section-actions, .item-footer, .add-row, #addYellowTab, .save-state, .toast, .photo-label, .photo-help, .cover-photo-remove, .thumb-remove, .item-collapse-toggle .chevron, .menu-trigger, .conformity-help-button, .help-dialog { display: none !important; }
       .page { width: 100%; }
       .hero { height: 262mm; padding: 4mm 8mm 16mm; overflow: hidden; break-after: page; page-break-after: always; }
       .hero .page { height: 100%; min-height: 0; display: flex; flex-direction: column; }
@@ -524,6 +527,7 @@
     <section class="section">
       <div class="section-title"><span class="section-location-label">LOCALISATION</span><input class="section-name-input" list="locationSuggestions" type="text" aria-label="Type de localisation" placeholder="Choisir ou saisir"><button class="section-toggle" type="button" aria-label="Replier ou déplier"><small class="item-count"></small> <span class="chevron">⌄</span></button></div>
       <div class="section-content">
+        <div class="section-actions"><button class="btn add-conformity" type="button">＋ Ajouter l’onglet conformité</button><button class="btn danger delete-section" type="button">Supprimer la localisation</button></div>
         <div class="section-tabs" role="tablist">
           <button class="section-tab active" data-section-tab="equipment" type="button">Équipements</button>
           <button class="section-tab" data-section-tab="remark" type="button">Remarque</button>
@@ -807,7 +811,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             row('Dalle de sol','ENS','','TOITURE / PATIO','','ok') ] }
         ]
       };
-      const emptySeed = { reportTitle: 'Rapport de prise en charge', regulatoryText: '', projectName: '', coverPhoto: '', coverPhotoData: '', agency: 'marseille', visitDate: '', technician: '', sections: [{ id: uid(), name: '', remark: '', photos: [], items: [row()], conformity: clone(conformityChecklist) }] };
+      const emptySeed = { reportTitle: 'Rapport de prise en charge', regulatoryText: '', projectName: '', coverPhoto: '', coverPhotoData: '', agency: 'marseille', visitDate: '', technician: '', sections: [{ id: uid(), name: '', remark: '', photos: [], items: [row()], conformity: clone(conformityChecklist), hasConformity: false, collapsed: false }] };
       const suggestions = {
         equipment: equipmentCatalog,
         quantity: [], brand: [], location: []
@@ -832,19 +836,22 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         candidate.agency = agencies[candidate.agency] ? candidate.agency : 'marseille';
         const legacyChecks=Array.isArray(candidate.conformity)?candidate.conformity:[];
         candidate.sections.forEach(s => {
-          s.id ||= uid(); s.name = normalizeLocation(s.name); delete s.specificName; s.remark ??= ''; s.photos ||= []; s.items ||= []; s.items.forEach(i => { i.id ||= uid(); i.photos ||= []; i.status ||= 'ok'; i.model ??= ''; i.location ??= ''; });
+          s.id ||= uid(); s.name = normalizeLocation(s.name); delete s.specificName; s.remark ??= ''; s.photos ||= []; s.items ||= []; s.collapsed=Boolean(s.collapsed);s.items.forEach(i => { i.id ||= uid(); i.photos ||= []; i.status ||= 'ok'; i.model ??= ''; i.location ??= ''; });
           const savedChecks=new Map((Array.isArray(s.conformity)?s.conformity:legacyChecks).map(check=>[check.id,check]));
           s.conformity=conformityChecklist.map(base=>{const saved=savedChecks.get(base.id)||{};return {...base,status:['valid','na','invalid'].includes(saved.status)?saved.status:'',remark:String(saved.remark||'')};});
+          if(typeof s.hasConformity!=='boolean')s.hasConformity=s.conformity.some(check=>check.status||check.remark);
         });
         delete candidate.conformity;
         return candidate;
       }
       function normalizeLocation(value){
-        const text=String(value||'').trim().toUpperCase();if(locations.includes(text))return text;
-        if(text.includes('SOUS')&&text.includes('STATION'))return 'SOUS-STATION';
-        if(text.includes('PAC'))return 'LOCAL PAC';if(text.includes('CTA')||text.includes('VENTIL'))return 'LOCAL CTA';
-        if(text.includes('EAU')||text.includes('PLOMB'))return "LOCAL TRAITEMENT D'EAU";
-        if(text.includes('TGBT')||text.includes('COURANT'))return 'LOCAL TGBT';if(text.includes('CHAUFF'))return 'CHAUFFERIE';if(text.includes('EXT'))return 'EXTÉRIEUR';return text;
+        return String(value||'').trim().replace(/\s+/g,' ').toUpperCase();
+      }
+      function locationKind(value){
+        const text=normalizeLocation(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+        if(text.includes('EXTERIEUR'))return 'EXTÉRIEUR';if(text.includes('SOUS-STATION')||text.includes('SOUS STATION'))return 'SOUS-STATION';
+        if(text.includes('LOCAL TRAITEMENT')||text.includes("TRAITEMENT D'EAU"))return "LOCAL TRAITEMENT D'EAU";if(text.includes('LOCAL TGBT')||text.includes('TGBT'))return 'LOCAL TGBT';
+        if(text.includes('LOCAL PAC')||/\bPAC\b/.test(text))return 'LOCAL PAC';if(text.includes('LOCAL CTA')||/\bCTA\b/.test(text))return 'LOCAL CTA';if(text.includes('CHAUFFERIE'))return 'CHAUFFERIE';return '';
       }
       function brandsForEquipment(value){
         const name=String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase();
@@ -898,15 +905,18 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         data.sections.forEach(section => {
           const node = document.getElementById('sectionTemplate').content.firstElementChild.cloneNode(true);
           node.dataset.sectionId = section.id;
+          node.classList.toggle('collapsed',Boolean(section.collapsed));
           const sectionName = node.querySelector('.section-name-input'); sectionName.value = section.name;
-          sectionName.addEventListener('input', () => { section.name = sectionName.value; node.querySelector('.conformity-card').hidden=normalizeLocation(section.name)==='EXTÉRIEUR'; save(); renderSummary(); renderPhotoAppendix(); });
-          sectionName.addEventListener('change',()=>{section.name=normalizeLocation(sectionName.value);save();render();});
+          sectionName.addEventListener('input', () => { section.name = sectionName.value;const exterior=locationKind(section.name)==='EXTÉRIEUR';node.querySelector('.conformity-card').hidden=!section.hasConformity||exterior;node.querySelector('.add-conformity').hidden=Boolean(section.hasConformity)||exterior;save();renderSummary();renderPhotoAppendix(); });
+          sectionName.addEventListener('change',()=>{section.name=normalizeLocation(sectionName.value);sectionName.value=section.name;save();renderSummary();renderPhotoAppendix();});
           const sectionRemark=node.querySelector('.section-remark'),sectionRemarkPrint=node.querySelector('.section-remark-print');sectionRemark.value=section.remark||'';sectionRemarkPrint.textContent=section.remark||'';sectionRemark.addEventListener('input',()=>{section.remark=sectionRemark.value;sectionRemarkPrint.textContent=section.remark;save();});
           node.querySelectorAll('.section-tab').forEach(tab=>tab.addEventListener('click',()=>{node.querySelectorAll('.section-tab,.section-pane').forEach(element=>element.classList.remove('active'));tab.classList.add('active');node.querySelector(`[data-section-pane="${tab.dataset.sectionTab}"]`).classList.add('active');}));
           node.querySelector('.item-count').textContent = `${section.items.length} élément${section.items.length > 1 ? 's' : ''}`;
-          node.querySelector('.section-toggle').addEventListener('click', () => node.classList.toggle('collapsed'));
+          const sectionToggle=node.querySelector('.section-toggle');sectionToggle.setAttribute('aria-expanded',String(!section.collapsed));sectionToggle.addEventListener('click', () => {section.collapsed=node.classList.toggle('collapsed');sectionToggle.setAttribute('aria-expanded',String(!section.collapsed));save();});
           const list = node.querySelector('.items'); section.items.forEach(item => list.append(renderItem(section, item)));
           node.querySelector('.add-row').addEventListener('click', () => { section.items.push(row()); save(); render(); setTimeout(() => host.querySelector(`[data-section-id="${section.id}"] .item:last-child`)?.scrollIntoView({behavior:'smooth',block:'center'}), 20); });
+          const addConformity=node.querySelector('.add-conformity');addConformity.hidden=Boolean(section.hasConformity)||locationKind(section.name)==='EXTÉRIEUR';addConformity.addEventListener('click',()=>{section.hasConformity=true;save();render();setTimeout(()=>document.querySelector(`[data-section-id="${section.id}"] .conformity-card`)?.scrollIntoView({behavior:'smooth',block:'start'}),20);});
+          node.querySelector('.delete-section').addEventListener('click',async()=>{if(!confirm(`Supprimer la localisation « ${section.name||'sans nom'} » et tous ses équipements ?`))return;const photoIds=[...section.photos,...section.items.flatMap(item=>item.photos||[])];for(const photoId of photoIds)await deletePhoto(photoId);data.sections=data.sections.filter(entry=>entry.id!==section.id);save();render();toast('Localisation supprimée');});
           node.querySelector('.section-photo-input').addEventListener('change',async event=>{const files=[...event.target.files];for(const file of files){try{const blob=await resizeImage(file,1800,.82),photoId=uid();await putPhoto(photoId,blob);section.photos.push(photoId);}catch{toast('Impossible d’enregistrer cette photo');}}event.target.value='';save();renderSectionPhotos(node,section);renderPhotoAppendix();});
           renderSectionPhotos(node,section);
           renderConformity(section,node);
@@ -917,7 +927,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       }
       function renderConformity(section,node){
         const card=node.querySelector('.conformity-card'),toggle=node.querySelector('.conformity-title'),body=node.querySelector('.conformity-rows');body.replaceChildren();
-        card.hidden=normalizeLocation(section.name)==='EXTÉRIEUR';if(card.hidden)return;
+        card.hidden=!section.hasConformity||locationKind(section.name)==='EXTÉRIEUR';if(card.hidden)return;
         toggle.addEventListener('click',()=>{const collapsed=card.classList.toggle('collapsed');toggle.setAttribute('aria-expanded',String(!collapsed));});
         section.conformity.forEach(check=>{
           const tr=document.createElement('tr'),family=document.createElement('td'),point=document.createElement('td'),statusCell=document.createElement('td'),remarkCell=document.createElement('td');
@@ -1054,12 +1064,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="2" width="2" hidden="1" customWidth="1"/><col min="3" max="3" width="25" customWidth="1"/><col min="4" max="4" width="28" customWidth="1"/><col min="5" max="5" width="12" customWidth="1"/><col min="6" max="7" width="20" customWidth="1"/><col min="8" max="8" width="22" customWidth="1"/><col min="9" max="9" width="28" customWidth="1"/><col min="10" max="10" width="48" customWidth="1"/><col min="11" max="11" width="24" customWidth="1"/></cols><sheetData>${body.join('')}</sheetData><autoFilter ref="C1:K${last}"/><dataValidations count="1"><dataValidation type="list" allowBlank="0" showErrorMessage="1" sqref="K2:K1000"><formula1>"Élément satisfaisant,Point de vigilance,Solution requise"</formula1></dataValidation></dataValidations></worksheet>`;
       }
       function locationsSheetXml(){
-        const headers=['ID localisation','Localisation','Remarque'];
-        const rows=data.sections.map(section=>[section.id,section.name,section.remark]);
+        const headers=['ID localisation','Localisation','Remarque','Conformité ajoutée'];
+        const rows=data.sections.map(section=>[section.id,section.name,section.remark,section.hasConformity?'OUI':'NON']);
         const body=[`<row r="1" ht="28" customHeight="1">${headers.map((value,index)=>excelCell(1,index,value,2)).join('')}</row>`];
         rows.forEach((values,index)=>{const r=index+2;body.push(`<row r="${r}">${values.map((value,column)=>excelCell(r,column,value,3)).join('')}</row>`);});
         const last=Math.max(2,rows.length+1);
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="2" hidden="1" customWidth="1"/><col min="2" max="2" width="28" customWidth="1"/><col min="3" max="3" width="65" customWidth="1"/></cols><sheetData>${body.join('')}</sheetData><autoFilter ref="B1:C${last}"/></worksheet>`;
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols><col min="1" max="1" width="2" hidden="1" customWidth="1"/><col min="2" max="2" width="28" customWidth="1"/><col min="3" max="3" width="65" customWidth="1"/><col min="4" max="4" width="20" customWidth="1"/></cols><sheetData>${body.join('')}</sheetData><autoFilter ref="B1:D${last}"/></worksheet>`;
       }
       function reportSheetXml(){
         const agencyNames={marseille:'Marseille',aix:'Aix',cuers:'Cuers',nice:'Nice',nimes:'Nîmes'};
@@ -1069,7 +1079,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       function conformitySheetXml(){
         const headers=['ID localisation','Localisation','ID contrôle','Famille de vérification','Point à vérifier','Conformité','Remarques'];
         const labels={valid:'V - Validé',na:'Non concerné',invalid:'X - Non conforme'};
-        const rows=data.sections.filter(section=>normalizeLocation(section.name)!=='EXTÉRIEUR').flatMap(section=>section.conformity.map(check=>[section.id,section.name,check.id,check.family,check.point,labels[check.status]||'',check.remark]));
+        const rows=data.sections.filter(section=>section.hasConformity&&locationKind(section.name)!=='EXTÉRIEUR').flatMap(section=>section.conformity.map(check=>[section.id,section.name,check.id,check.family,check.point,labels[check.status]||'',check.remark]));
         const body=[`<row r="1" ht="28" customHeight="1">${headers.map((value,index)=>excelCell(1,index,value,2)).join('')}</row>`];
         rows.forEach((values,index)=>{const r=index+2;body.push(`<row r="${r}">${values.map((value,column)=>excelCell(r,column,value,3)).join('')}</row>`);});
         const last=Math.max(2,rows.length+1);
@@ -1115,73 +1125,107 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         zip.file('docProps/app.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>SOGITEC Prise en charge</Application></Properties>');
         const blob=await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),link=document.createElement('a');link.href=URL.createObjectURL(blob);link.download=`prise-en-charge-${(data.projectName||'chantier').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-')}.xlsx`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1500);toast('Fichier Excel exporté');
       }
-      function wordRun(text,bold=false,color='000000',size=20){const content=String(text??'').split(/\r?\n/).map((line,index)=>`${index?'<w:br/>':''}<w:t xml:space="preserve">${xmlEscape(line)}</w:t>`).join('');return `<w:r><w:rPr>${bold?'<w:b/>':''}<w:color w:val="${color}"/><w:sz w:val="${size}"/><w:szCs w:val="${size}"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr>${content}</w:r>`;}
+      function wordRun(text,bold=false,color='000000',size=20,options={}){const content=String(text??'').split(/\r?\n/).map((line,index)=>`${index?'<w:br/>':''}<w:t xml:space="preserve">${xmlEscape(line)}</w:t>`).join('');return `<w:r><w:rPr>${bold?'<w:b/>':''}${options.italic?'<w:i/>':''}${options.underline?'<w:u w:val="single" w:color="'+color+'"/>':''}<w:color w:val="${color}"/><w:sz w:val="${size}"/><w:szCs w:val="${size}"/><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr>${content}</w:r>`;}
       function wordParagraph(text='',style='',options={}){
-        const pPr=[style?`<w:pStyle w:val="${style}"/>`:'',options.pageBreakBefore?'<w:pageBreakBefore/>':'',options.keepNext?'<w:keepNext/>':'',options.center?'<w:jc w:val="center"/>':'',options.spaceAfter!==undefined?`<w:spacing w:after="${options.spaceAfter}"/>`:''].join('');
-        return `<w:p>${pPr?`<w:pPr>${pPr}</w:pPr>`:''}${wordRun(text,Boolean(options.bold),options.color||'000000',options.size||20)}</w:p>`;
+        const pPr=[style?`<w:pStyle w:val="${style}"/>`:'',options.pageBreakBefore?'<w:pageBreakBefore/>':'',options.keepNext?'<w:keepNext/>':'',options.keepLines?'<w:keepLines/>':'',options.center?'<w:jc w:val="center"/>':options.right?'<w:jc w:val="right"/>':'',options.spaceBefore!==undefined||options.spaceAfter!==undefined?`<w:spacing${options.spaceBefore!==undefined?` w:before="${options.spaceBefore}"`:''}${options.spaceAfter!==undefined?` w:after="${options.spaceAfter}"`:''}/>`:'',options.shading?`<w:shd w:val="clear" w:color="auto" w:fill="${options.shading}"/>`:''].join('');
+        return `<w:p>${pPr?`<w:pPr>${pPr}</w:pPr>`:''}${wordRun(text,Boolean(options.bold),options.color||'000000',options.size||20,{italic:options.italic,underline:options.underline})}</w:p>`;
       }
       function wordPageBreak(){return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';}
       function wordTextBlock(text){return String(text||'').split(/\r?\n/).map(line=>wordParagraph(line||' ', '', {spaceAfter:90,size:20})).join('');}
       function wordCell(text,options={}){
-        const fill=options.fill?`<w:shd w:val="clear" w:color="auto" w:fill="${options.fill}"/>`:'',width=options.width?`<w:tcW w:w="${options.width}" w:type="dxa"/>`:'';
-        return `<w:tc><w:tcPr>${width}${fill}<w:vAlign w:val="center"/><w:tcMar><w:top w:w="90" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="90" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tcMar></w:tcPr>${wordParagraph(String(text??''),'',{bold:options.bold,color:options.color||'000000',size:options.size||18,center:options.center,spaceAfter:0})}</w:tc>`;
+        const fill=options.fill?`<w:shd w:val="clear" w:color="auto" w:fill="${options.fill}"/>`:'',width=options.width?`<w:tcW w:w="${options.width}" w:type="dxa"/>`:'',span=options.span?`<w:gridSpan w:val="${options.span}"/>`:'',borders=options.borders||'';
+        const content=options.xml||wordParagraph(String(text??''),'',{bold:options.bold,color:options.color||'000000',size:options.size||18,center:options.center,spaceAfter:0});
+        return `<w:tc><w:tcPr>${width}${span}${fill}${borders}<w:vAlign w:val="center"/><w:tcMar><w:top w:w="100" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:bottom w:w="100" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>${content}</w:tc>`;
       }
+      const wordBorders='<w:tblBorders><w:top w:val="single" w:sz="6" w:color="CFDAD3"/><w:left w:val="single" w:sz="6" w:color="CFDAD3"/><w:bottom w:val="single" w:sz="6" w:color="CFDAD3"/><w:right w:val="single" w:sz="6" w:color="CFDAD3"/><w:insideH w:val="single" w:sz="5" w:color="D9E2DC"/><w:insideV w:val="single" w:sz="5" w:color="D9E2DC"/></w:tblBorders>';
       function wordTable(headers,rows,widths=[]){
-        const borders='<w:tblBorders><w:top w:val="single" w:sz="5" w:color="D9D9D9"/><w:left w:val="single" w:sz="5" w:color="D9D9D9"/><w:bottom w:val="single" w:sz="5" w:color="D9D9D9"/><w:right w:val="single" w:sz="5" w:color="D9D9D9"/><w:insideH w:val="single" w:sz="5" w:color="D9D9D9"/><w:insideV w:val="single" w:sz="5" w:color="D9D9D9"/></w:tblBorders>';
         const grid=widths.length?`<w:tblGrid>${widths.map(width=>`<w:gridCol w:w="${width}"/>`).join('')}</w:tblGrid>`:'';
         const header=`<w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>${headers.map((value,index)=>wordCell(value,{width:widths[index],fill:'087A3E',color:'FFFFFF',bold:true,center:true,size:17})).join('')}</w:tr>`;
         const body=rows.map((values,rowIndex)=>`<w:tr><w:trPr><w:cantSplit/></w:trPr>${values.map((value,index)=>wordCell(value,{width:widths[index],fill:rowIndex%2?'F4F7F5':'FFFFFF',size:17,center:index===1})).join('')}</w:tr>`).join('');
-        return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblLayout w:type="fixed"/>${borders}</w:tblPr>${grid}${header}${body}</w:tbl>${wordParagraph('', '', {spaceAfter:80})}`;
+        return `<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblLayout w:type="fixed"/>${wordBorders}</w:tblPr>${grid}${header}${body}</w:tbl>${wordParagraph('', '', {spaceAfter:80})}`;
+      }
+      function wordSectionBanner(name){return `<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblLayout w:type="fixed"/>${wordBorders}</w:tblPr><w:tblGrid><w:gridCol w:w="9000"/></w:tblGrid><w:tr><w:trPr><w:cantSplit/></w:trPr>${wordCell(`LOCALISATION   ${name||''}`,{width:9000,fill:'087A3E',color:'FFFFFF',bold:true,size:22})}</w:tr></w:tbl>${wordParagraph('', '', {spaceAfter:70})}`;}
+      function wordField(label,value,width,options={}){const xml=wordParagraph(label,'',{bold:true,color:'536159',size:14,spaceAfter:25})+wordParagraph(value||'—','',{bold:Boolean(options.bold),color:options.color||'101411',size:17,spaceAfter:0});return wordCell('',{width,fill:options.fill||'FFFFFF',xml});}
+      function wordEquipmentCard(item){
+        const accent=item.status==='solution'?'E32626':item.status==='vigilance'?'F2B600':'0CB358',status=statusLabel(item.status);
+        const accentBorder=`<w:tcBorders><w:left w:val="single" w:sz="42" w:color="${accent}"/></w:tcBorders>`;
+        const grid='<w:tblGrid><w:gridCol w:w="3000"/><w:gridCol w:w="3000"/><w:gridCol w:w="3000"/></w:tblGrid>';
+        const header=`<w:tr><w:trPr><w:cantSplit/></w:trPr>${wordCell(item.equipment||'Équipement',{width:9000,span:3,fill:'F3F7F4',bold:true,color:'083F25',size:21,borders:accentBorder})}</w:tr>`;
+        const row1=`<w:tr><w:trPr><w:cantSplit/></w:trPr>${wordField('Quantité',item.quantity,3000)}${wordField('Marque',item.brand,3000)}${wordField('Modèle',item.model,3000)}</w:tr>`;
+        const row2=`<w:tr><w:trPr><w:cantSplit/></w:trPr>${wordField('N° de série',item.serialNumber,3000)}${wordField('Localisation',item.location,3000)}${wordField('Criticité',status,3000,{bold:true,color:accent,fill:'F9FBFA'})}</w:tr>`;
+        const remarkXml=wordParagraph('REMARQUE TECHNIQUE','',{bold:true,color:'536159',size:14,spaceAfter:35})+wordTextBlock(item.remark||'Aucune remarque');
+        const row3=`<w:tr><w:trPr><w:cantSplit/></w:trPr>${wordCell('',{width:9000,span:3,xml:remarkXml})}</w:tr>`;
+        return `<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblLayout w:type="fixed"/>${wordBorders}</w:tblPr>${grid}${header}${row1}${row2}${row3}</w:tbl>${wordParagraph('', '', {spaceAfter:110})}`;
+      }
+      function wordConformityTable(checks){
+        const widths=[1650,3900,1300,2150],labels={valid:'V - Conforme',na:'Non concerné',invalid:'X - Non conforme'};
+        const grid=`<w:tblGrid>${widths.map(width=>`<w:gridCol w:w="${width}"/>`).join('')}</w:tblGrid>`;
+        const header=`<w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>${['Famille','Point à vérifier','Résultat','Remarque'].map((value,index)=>wordCell(value,{width:widths[index],fill:'087A3E',color:'FFFFFF',bold:true,center:true,size:16})).join('')}</w:tr>`;
+        const body=checks.map(check=>{const fill=check.status==='valid'?'E5F5EA':check.status==='invalid'?'FDE8E8':'FFFFFF',color=check.status==='valid'?'087A3E':check.status==='invalid'?'B21F1F':'303A34',values=[check.family,check.point,labels[check.status]||'',check.remark];return `<w:tr><w:trPr><w:cantSplit/></w:trPr>${values.map((value,index)=>wordCell(value,{width:widths[index],fill,color:index===2?color:'000000',bold:index===2,size:15,center:index===2})).join('')}</w:tr>`;}).join('');
+        return `<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblLayout w:type="fixed"/>${wordBorders}</w:tblPr>${grid}${header}${body}</w:tbl>${wordParagraph('', '', {spaceAfter:100})}`;
+      }
+      function wordSummaryTable(rows){
+        const widths=[3400,3200,2400],grid=`<w:tblGrid>${widths.map(width=>`<w:gridCol w:w="${width}"/>`).join('')}</w:tblGrid>`,header=`<w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>${['Équipement','Localisation','Criticité'].map((value,index)=>wordCell(value,{width:widths[index],fill:'087A3E',color:'FFFFFF',bold:true,center:true,size:17})).join('')}</w:tr>`;
+        const body=rows.map(row=>{const status=row[2],fill=status==='Solution requise'?'FDE8E8':status==='Point de vigilance'?'FFF3CC':'E5F5EA',color=status==='Solution requise'?'B21F1F':status==='Point de vigilance'?'8A6500':'087A3E';return `<w:tr><w:trPr><w:cantSplit/></w:trPr>${wordCell(row[0],{width:widths[0],fill:'FFFFFF',size:17})}${wordCell(row[1],{width:widths[1],fill:'FFFFFF',size:17})}${wordCell(status,{width:widths[2],fill,color,bold:true,center:true,size:16})}</w:tr>`;}).join('');
+        return `<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblLayout w:type="fixed"/>${wordBorders}</w:tblPr>${grid}${header}${body}</w:tbl>${wordParagraph('', '', {spaceAfter:100})}`;
+      }
+      function wordCriticalityChart(){
+        const all=data.sections.flatMap(section=>section.items),counts={ok:0,vigilance:0,solution:0};all.forEach(item=>counts[item.status]++);if(!all.length)return '';
+        const canvas=document.createElement('canvas');canvas.width=900;canvas.height=420;const ctx=canvas.getContext('2d'),cx=250,cy=210,r=145,total=all.length,entries=[['ok','Éléments satisfaisants','#0cb358'],['vigilance','Points de vigilance','#ffbd00'],['solution','Solutions requises','#e32626']];ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);let angle=-Math.PI/2;
+        entries.forEach(([key,label,color])=>{const slice=counts[key]/total*Math.PI*2;if(slice){ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,angle,angle+slice);ctx.closePath();ctx.fillStyle=color;ctx.fill();angle+=slice;}});ctx.font='bold 25px Arial';ctx.fillStyle='#087a3e';ctx.fillText('Répartition par criticité',450,75);ctx.font='21px Arial';entries.forEach(([key,label,color],index)=>{const y=135+index*72;ctx.fillStyle=color;ctx.fillRect(450,y-22,28,28);ctx.fillStyle='#1d2821';ctx.fillText(`${label} : ${counts[key]} (${Math.round(counts[key]/total*100)} %)`,495,y);});return canvas.toDataURL('image/png');
       }
       async function wordImageDimensions(encoded){
-        return new Promise(resolve=>{const image=new Image();image.onload=()=>{const maxWidth=5200000,maxHeight=6100000,ratio=Math.min(maxWidth/image.naturalWidth,maxHeight/image.naturalHeight);resolve({cx:Math.round(image.naturalWidth*ratio),cy:Math.round(image.naturalHeight*ratio)});};image.onerror=()=>resolve({cx:5000000,cy:3300000});image.src=encoded;});
+        return new Promise(resolve=>{const image=new Image();image.onload=()=>{const maxWidth=5450000,maxHeight=6200000,ratio=Math.min(maxWidth/image.naturalWidth,maxHeight/image.naturalHeight);resolve({cx:Math.round(image.naturalWidth*ratio),cy:Math.round(image.naturalHeight*ratio)});};image.onerror=()=>resolve({cx:5000000,cy:3300000});image.src=encoded;});
       }
-      function wordImageDrawing(relId,id,name,cx,cy){return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="120"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${id}" name="${xmlEscape(name)}" descr="${xmlEscape(name)}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${id}" name="${xmlEscape(name)}" descr="${xmlEscape(name)}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;}
+      function wordImageDrawing(relId,id,name,cx,cy,borderColor=''){const line=borderColor?`<a:ln w="52000"><a:solidFill><a:srgbClr val="${borderColor}"/></a:solidFill><a:prstDash val="solid"/></a:ln>`:'';return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="120"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${id}" name="${xmlEscape(name)}" descr="${xmlEscape(name)}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${id}" name="${xmlEscape(name)}" descr="${xmlEscape(name)}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>${line}</pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;}
       async function exportWord(){
         if(typeof JSZip==='undefined'){alert('Le module Word n’a pas été chargé. Actualisez complètement la page.');return;}
         toast('Préparation du document Word…');
-        const photos=await collectExcelPhotos(),zip=new JSZip(),relationships=[],media=[],documentParts=[];
-        documentParts.push(wordParagraph(data.reportTitle||'Rapport de prise en charge','Title',{center:true,size:34,spaceAfter:220}));
-        documentParts.push(wordParagraph(data.projectName||'Chantier','Subtitle',{center:true,size:28,spaceAfter:260}));
-        documentParts.push(wordTable(['Champ','Information'],[
-          ['Date de visite',data.visitDate||''],['Intervenant',data.technician||''],['Agence',(agencies[data.agency]||agencies.marseille).join('\n')]
-        ],[1900,7000]));
+        const photos=await collectExcelPhotos(),zip=new JSZip(),relationships=[],media=[],documentParts=[],project=data.projectName||'Chantier',agency=agencies[data.agency]||agencies.marseille;
+        documentParts.push(wordParagraph('SOGITEC','',{bold:true,color:'27A956',size:40,underline:true,spaceAfter:620}));
+        documentParts.push(wordParagraph(data.reportTitle||'Rapport de prise en charge','Title',{color:'087A3E',bold:true,size:34,spaceAfter:90}));
+        documentParts.push(wordParagraph(project,'Subtitle',{bold:true,size:29,spaceAfter:240}));
+        documentParts.push(`<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblLayout w:type="fixed"/>${wordBorders}</w:tblPr><w:tblGrid><w:gridCol w:w="4500"/><w:gridCol w:w="4500"/></w:tblGrid><w:tr><w:trPr><w:cantSplit/></w:trPr>${wordField('Date de visite',data.visitDate||'—',4500)}${wordField('Intervenant',data.technician||'—',4500)}</w:tr></w:tbl>${wordParagraph('', '', {spaceAfter:170})}`);
         const cover=photos.find(photo=>photo.type==='chantier');
-        if(cover){const mime=(cover.encoded.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',ext=mime.includes('png')?'png':'jpg',relId='rId3',dimensions=await wordImageDimensions(cover.encoded);relationships.push({id:relId,target:`media/photo-cover.${ext}`});media.push({path:`word/media/photo-cover.${ext}`,base64:cover.encoded.split(',')[1]||''});documentParts.push(wordImageDrawing(relId,1,'Photo du chantier',dimensions.cx,dimensions.cy));}
+        if(cover){const mime=(cover.encoded.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',ext=mime.includes('png')?'png':'jpg',relId='rId3',dimensions=await wordImageDimensions(cover.encoded);relationships.push({id:relId,target:`media/photo-cover.${ext}`});media.push({path:`word/media/photo-cover.${ext}`,base64:cover.encoded.split(',')[1]||''});documentParts.push(wordImageDrawing(relId,1,'Photo du chantier',dimensions.cx,Math.min(dimensions.cy,4400000)));}
+        documentParts.push(wordParagraph(agency[0]||'SOGITEC','',{bold:true,color:'087A3E',size:18,spaceBefore:180,spaceAfter:30}));
+        documentParts.push(wordParagraph(agency.slice(1).join('\n'),'',{size:16,spaceAfter:0}));
         documentParts.push(wordPageBreak());
         if(String(data.regulatoryText||'').trim()){
-          documentParts.push(wordParagraph('Texte réglementaire','Heading1',{size:28,spaceAfter:220}));
+          documentParts.push(wordParagraph('SOGITEC','',{bold:true,color:'27A956',size:34,underline:true,spaceAfter:500}));
+          documentParts.push(wordParagraph('Texte réglementaire','Heading1',{color:'087A3E',size:28,spaceAfter:220}));
           documentParts.push(wordTextBlock(data.regulatoryText));
           documentParts.push(wordPageBreak());
         }
-        documentParts.push(wordParagraph('État des lieux et prise en charge','Heading1',{size:28,spaceAfter:180}));
+        documentParts.push(wordParagraph('État des lieux et prise en charge','Heading1',{color:'087A3E',size:28,spaceAfter:90}));
+        documentParts.push(wordParagraph('Pour chaque équipement, la criticité est indiquée par la couleur du bloc.','',{color:'536159',size:17,spaceAfter:180}));
         for(const section of data.sections){
-          documentParts.push(wordParagraph(section.name||'Localisation','Heading2',{size:24,spaceAfter:120,keepNext:true}));
-          if(section.remark)documentParts.push(wordParagraph(`Remarque : ${section.remark}`,'',{size:19,spaceAfter:120}));
-          const equipmentRows=section.items.map(item=>[item.equipment,item.quantity,[item.brand,item.model,item.serialNumber&&`N° ${item.serialNumber}`].filter(Boolean).join(' · '),item.location,statusLabel(item.status),item.remark]);
-          documentParts.push(wordTable(['Équipement','Qté','Marque modèle série','Localisation','Criticité','Remarque'],equipmentRows,[1500,550,1750,1300,1250,2250]));
-          if(normalizeLocation(section.name)!=='EXTÉRIEUR'){
-            const conformityRows=section.conformity.map(check=>[check.family,check.point,{valid:'V - Validé',na:'Non concerné',invalid:'X - Non conforme'}[check.status]||'',check.remark]);
-            documentParts.push(wordParagraph('Conformité','Heading2',{size:22,spaceAfter:100,keepNext:true}));
-            documentParts.push(wordTable(['Famille','Point à vérifier','Résultat','Remarque'],conformityRows,[1500,4300,1200,1800]));
+          documentParts.push(wordSectionBanner(section.name||'Localisation'));
+          if(section.remark)documentParts.push(wordParagraph('REMARQUE DE LA LOCALISATION','',{bold:true,color:'536159',size:14,spaceAfter:30,keepNext:true}),wordParagraph(section.remark,'',{size:18,spaceAfter:130}));
+          section.items.forEach(item=>documentParts.push(wordEquipmentCard(item)));
+          if(section.hasConformity&&locationKind(section.name)!=='EXTÉRIEUR'){
+            documentParts.push(wordParagraph('Conformité','Heading2',{color:'087A3E',size:22,spaceBefore:60,spaceAfter:80,keepNext:true}));
+            documentParts.push(wordConformityTable(section.conformity));
           }
         }
         const summaryRows=data.sections.flatMap(section=>section.items.map(item=>[item.equipment,item.location||section.name,statusLabel(item.status)]));
-        documentParts.push(wordParagraph('Synthèse','Heading1',{pageBreakBefore:true,size:28,spaceAfter:160}));
-        documentParts.push(wordTable(['Équipement','Localisation','Criticité'],summaryRows,[3300,3000,2400]));
+        documentParts.push(wordParagraph('Synthèse','Heading1',{pageBreakBefore:true,color:'087A3E',size:28,spaceAfter:160}));
+        documentParts.push(wordSummaryTable(summaryRows));
+        const chart=wordCriticalityChart();if(chart){const relId=`rId${relationships.length+3}`;relationships.push({id:relId,target:'media/criticite.png'});media.push({path:'word/media/criticite.png',base64:chart.split(',')[1]||''});documentParts.push(wordImageDrawing(relId,99,'Répartition des équipements par criticité',4800000,2240000));}
         const appendixPhotos=photos.filter(photo=>photo.type!=='chantier');
-        if(appendixPhotos.length){documentParts.push(wordParagraph('Annexe photographique','Heading1',{pageBreakBefore:true,size:28,spaceAfter:180}));}
+        if(appendixPhotos.length){documentParts.push(wordParagraph('Annexe photographique','Heading1',{pageBreakBefore:true,color:'087A3E',size:28,spaceAfter:180}));}
         let imageId=2;
         for(let index=0;index<appendixPhotos.length;index++){
-          const photo=appendixPhotos[index],mime=(photo.encoded.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',ext=mime.includes('png')?'png':'jpg',relId=`rId${relationships.length+3}`,dimensions=await wordImageDimensions(photo.encoded),name=`${photo.category} - ${photo.equipment} - Photo ${photo.order+1}`;
-          relationships.push({id:relId,target:`media/photo-${index+1}.${ext}`});media.push({path:`word/media/photo-${index+1}.${ext}`,base64:photo.encoded.split(',')[1]||''});documentParts.push(wordParagraph(name,'Heading2',{size:22,spaceAfter:100,keepNext:true}));documentParts.push(wordImageDrawing(relId,imageId++,name,dimensions.cx,dimensions.cy));if(index<appendixPhotos.length-1)documentParts.push(wordPageBreak());
+          const photo=appendixPhotos[index],item=data.sections.flatMap(section=>section.items).find(entry=>entry.id===photo.itemId),mime=(photo.encoded.match(/^data:([^;]+)/)||[])[1]||'image/jpeg',ext=mime.includes('png')?'png':'jpg',relId=`rId${relationships.length+3}`,dimensions=await wordImageDimensions(photo.encoded),name=`${photo.equipment||'Localisation'} - Photo ${photo.order+1}`,details=[photo.category,item?.brand&&`Marque : ${item.brand}`,item?.model&&`Modèle : ${item.model}`,item?.serialNumber&&`N° de série : ${item.serialNumber}`,photo.itemLocation&&`Localisation : ${photo.itemLocation}`,item&&statusLabel(item.status)].filter(Boolean).join(' · '),border=item?(item.status==='solution'?'E32626':item.status==='vigilance'?'F2B600':'0CB358'):'087A3E';
+          relationships.push({id:relId,target:`media/photo-${index+1}.${ext}`});media.push({path:`word/media/photo-${index+1}.${ext}`,base64:photo.encoded.split(',')[1]||''});documentParts.push(wordParagraph(name,'Heading2',{color:'087A3E',center:true,size:22,spaceAfter:60,keepNext:true}),wordParagraph(details,'',{center:true,color:'536159',size:16,spaceAfter:110,keepNext:true}));documentParts.push(wordImageDrawing(relId,imageId++,name,dimensions.cx,dimensions.cy,border));if(index<appendixPhotos.length-1)documentParts.push(wordPageBreak());
         }
-        const documentXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>${documentParts.join('')}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="900" w:bottom="1134" w:left="900" w:header="500" w:footer="500" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+        const documentXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>${documentParts.join('')}<w:sectPr><w:footerReference w:type="default" r:id="rId2"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="900" w:right="900" w:bottom="950" w:left="900" w:header="400" w:footer="400" w:gutter="0"/></w:sectPr></w:body></w:document>`;
         const stylesXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="20"/><w:color w:val="000000"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="100" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:jc w:val="center"/></w:pPr><w:rPr><w:b/><w:color w:val="000000"/><w:sz w:val="34"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:rPr><w:b/><w:color w:val="000000"/><w:sz w:val="28"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:keepLines/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:color w:val="000000"/><w:sz w:val="28"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/><w:keepLines/><w:outlineLvl w:val="1"/></w:pPr><w:rPr><w:b/><w:color w:val="000000"/><w:sz w:val="24"/></w:rPr></w:style></w:styles>`;
-        zip.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpg" ContentType="image/jpeg"/><Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>');
+        zip.file('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpg" ContentType="image/jpeg"/><Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>');
         zip.file('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>');
-        zip.file('word/document.xml',documentXml);zip.file('word/styles.xml',stylesXml);
-        zip.file('word/_rels/document.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>${relationships.map(rel=>`<Relationship Id="${rel.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="${rel.target}"/>`).join('')}</Relationships>`);
+        const footerXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblBorders><w:top w:val="single" w:sz="8" w:color="087A3E"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w="7200"/><w:gridCol w:w="1800"/></w:tblGrid><w:tr>${wordCell(project,{width:7200,bold:true,color:'087A3E',size:15})}<w:tc><w:tcPr><w:tcW w:w="1800" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr><w:p><w:pPr><w:jc w:val="right"/></w:pPr>${wordRun('Page ',false,'536159',15)}<w:fldSimple w:instr=" PAGE "><w:r><w:rPr><w:color w:val="087A3E"/><w:b/><w:sz w:val="15"/></w:rPr><w:t>1</w:t></w:r></w:fldSimple></w:p></w:tc></w:tr></w:tbl></w:ftr>`;
+        zip.file('word/document.xml',documentXml);zip.file('word/styles.xml',stylesXml);zip.file('word/footer1.xml',footerXml);zip.file('word/settings.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:updateFields w:val="true"/><w:doNotTrackMoves/><w:doNotTrackFormatting/></w:settings>');
+        zip.file('word/_rels/document.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/><Relationship Id="rIdSettings" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>${relationships.map(rel=>`<Relationship Id="${rel.id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="${rel.target}"/>`).join('')}</Relationships>`);
         media.forEach(file=>zip.file(file.path,file.base64,{base64:true}));
         const now=new Date().toISOString();zip.file('docProps/core.xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xmlEscape(data.reportTitle||'Rapport de prise en charge')} - ${xmlEscape(data.projectName||'Chantier')}</dc:title><dc:creator>SOGITEC</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created></cp:coreProperties>`);zip.file('docProps/app.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>SOGITEC Prise en charge</Application></Properties>');
         const blob=await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}),link=document.createElement('a'),slug=(data.projectName||'chantier').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-');link.href=URL.createObjectURL(blob);link.download=`prise-en-charge-${slug}.docx`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1500);toast('Document Word exporté');
@@ -1200,13 +1244,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         rows.slice(1).forEach(values=>{
           const cells=values.map(v=>v??''),itemId=readEquipmentCell(cells,'ID équipement'),sectionId=readEquipmentCell(cells,'ID localisation'),sectionName=readEquipmentCell(cells,'Localisation','Localisation principale'),equipment=readEquipmentCell(cells,'Équipement'),quantity=readEquipmentCell(cells,'Quantité'),brand=readEquipmentCell(cells,'Marque'),model=readEquipmentCell(cells,'Modèle'),serialNumber=readEquipmentCell(cells,'N° de série'),location=readEquipmentCell(cells,'Localisation équipement','Localisation précise'),remark=readEquipmentCell(cells,'Remarque'),criticality=readEquipmentCell(cells,'Criticité');
           if(!String(equipment).trim())return;const normalizedSection=normalizeLocation(sectionName),key=sectionId||`name:${normalizedSection}`;let section=sectionMap.get(key);
-          if(!section){section={id:sectionId||uid(),name:normalizedSection,remark:'',photos:[],items:[]};sectionMap.set(key,section);sections.push(section);}
+          if(!section){section={id:sectionId||uid(),name:normalizedSection,remark:'',photos:[],items:[],hasConformity:false,collapsed:false};sectionMap.set(key,section);sections.push(section);}
           const old=oldItems.get(itemId),statusText=String(criticality).toLowerCase(),status=statusText.includes('solution')?'solution':statusText.includes('vigilance')?'vigilance':'ok';
           section.items.push({id:itemId||uid(),equipment:String(equipment),quantity:String(quantity),brand:String(brand),model:String(model),serialNumber:String(serialNumber),location:String(location),remark:String(remark),status,photos:old?.photos||[]});
         });
-        if(locationRows.length>1){const headers=new Map((locationRows[0]||[]).map((value,index)=>[normalizeHeader(value),index]));const readLocation=(cells,...labels)=>{for(const label of labels){const index=headers.get(normalizeHeader(label));if(index!==undefined)return cells[index]??'';}return '';};locationRows.slice(1).forEach(values=>{const cells=values.map(value=>value??''),id=readLocation(cells,'ID localisation'),name=normalizeLocation(readLocation(cells,'Localisation')),remark=readLocation(cells,'Remarque'),key=id||`name:${name}`;if(!name&&!remark)return;let section=sectionMap.get(key)||sections.find(entry=>entry.id===id)||sections.find(entry=>entry.name===name);if(!section){section={id:id||uid(),name,remark:String(remark),photos:[],items:[]};sectionMap.set(key,section);sections.push(section);}else section.remark=String(remark);});}
+        if(locationRows.length>1){const headers=new Map((locationRows[0]||[]).map((value,index)=>[normalizeHeader(value),index]));const readLocation=(cells,...labels)=>{for(const label of labels){const index=headers.get(normalizeHeader(label));if(index!==undefined)return cells[index]??'';}return '';};locationRows.slice(1).forEach(values=>{const cells=values.map(value=>value??''),id=readLocation(cells,'ID localisation'),name=normalizeLocation(readLocation(cells,'Localisation')),remark=readLocation(cells,'Remarque'),hasConformity=/^(oui|yes|1|vrai)$/i.test(String(readLocation(cells,'Conformité ajoutée','Conformité'))),key=id||`name:${name}`;if(!name&&!remark)return;let section=sectionMap.get(key)||sections.find(entry=>entry.id===id)||sections.find(entry=>entry.name===name);if(!section){section={id:id||uid(),name,remark:String(remark),photos:[],items:[],hasConformity,collapsed:false};sectionMap.set(key,section);sections.push(section);}else{section.remark=String(remark);section.hasConformity=hasConformity;}});}
         if(!sections.length)throw new Error('Aucune localisation ni aucun équipement trouvé dans le fichier Excel');
-        sections.forEach(section=>{const old=oldSections.get(section.id),saved=new Map((old?.conformity||[]).map(check=>[check.id,check]));section.remark=String(section.remark||old?.remark||'');section.photos=[...(old?.photos||[])];section.conformity=conformityChecklist.map(base=>{const previous=saved.get(base.id)||{};return {...base,status:['valid','na','invalid'].includes(previous.status)?previous.status:'',remark:String(previous.remark||'')};});});data.sections=sections;
+        sections.forEach(section=>{const old=oldSections.get(section.id),saved=new Map((old?.conformity||[]).map(check=>[check.id,check]));section.remark=String(section.remark||old?.remark||'');section.photos=[...(old?.photos||[])];section.collapsed=Boolean(old?.collapsed);if(typeof section.hasConformity!=='boolean')section.hasConformity=Boolean(old?.hasConformity);section.conformity=conformityChecklist.map(base=>{const previous=saved.get(base.id)||{};return {...base,status:['valid','na','invalid'].includes(previous.status)?previous.status:'',remark:String(previous.remark||'')};});});data.sections=sections;
         if(photoRows.length>1){
           const importedItems=new Map(sections.flatMap(section=>section.items.map(item=>[item.id,item]))),importedSections=new Map(sections.map(section=>[section.id,section])),groups=new Map();sections.forEach(section=>{section.photos=[];section.items.forEach(item=>item.photos=[]);});
           photoRows.slice(1).forEach(values=>{const [type,itemId,photoId,order,part,chunk]=values.map(v=>String(v??''));if(!chunk)return;const key=[type,itemId,photoId,order].join('|');if(!groups.has(key))groups.set(key,{type,itemId,photoId,order:Number(order)||0,parts:[]});groups.get(key).parts[Number(part)||0]=chunk;});
@@ -1225,7 +1269,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             if(!bySection.has(sectionId))bySection.set(sectionId,new Map());bySection.get(sectionId).set(id,check);
             const location=normalizeLocation(sectionName);if(!byLocation.has(location))byLocation.set(location,new Map());byLocation.get(location).set(id,check);
           });
-          sections.forEach(section=>{const imported=bySection.get(section.id)||byLocation.get(section.name)||legacyChecks;section.conformity=conformityChecklist.map(base=>{const saved=imported.get(base.id)||{};return {...base,status:['valid','na','invalid'].includes(saved.status)?saved.status:'',remark:String(saved.remark||'')};});});
+          sections.forEach(section=>{const imported=bySection.get(section.id)||byLocation.get(section.name)||(legacyChecks.size?legacyChecks:null);if(!imported)return;section.hasConformity=true;section.conformity=conformityChecklist.map(base=>{const saved=imported.get(base.id)||{};return {...base,status:['valid','na','invalid'].includes(saved.status)?saved.status:'',remark:String(saved.remark||'')};});});
         }
         const fields=Object.fromEntries(meta.slice(1).map(line=>[String(line[0]||'').trim(),String(line[1]||'').trim()]));data.reportTitle=fields['Titre du rapport']??data.reportTitle;data.projectName=fields['Nom du chantier']??data.projectName;data.regulatoryText=fields['Texte réglementaire']??data.regulatoryText;let excelDate=fields['Date de visite']??data.visitDate;if(/^\d+(\.\d+)?$/.test(excelDate)){const date=new Date(Date.UTC(1899,11,30)+Number(excelDate)*86400000);excelDate=date.toISOString().slice(0,10);}data.visitDate=excelDate;data.technician=fields['Intervenant']??data.technician;const agencyByName={marseille:'marseille',aix:'aix',cuers:'cuers',nice:'nice','nîmes':'nimes',nimes:'nimes'};data.agency=agencyByName[(fields['Agence']||'').toLowerCase()]||data.agency;save();load();render();toast('Données et photos Excel réimportées');
       }
@@ -1239,7 +1283,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       document.getElementById('visitDate').addEventListener('input', e => { data.visitDate=e.target.value; save(); });
       document.getElementById('technician').addEventListener('input', e => { data.technician=e.target.value; save(); });
       document.getElementById('agencySelect').addEventListener('change', e => { data.agency=e.target.value; renderAgency(); save(); });
-      function addLocationSection(){ data.sections.push({id:uid(),name:'',remark:'',photos:[],items:[row()],conformity:clone(conformityChecklist)}); save(); render(); setTimeout(()=>{const input=document.querySelector('#sections .section:last-child .section-name-input'); input?.scrollIntoView({behavior:'smooth',block:'center'}); input?.focus();},20); }
+      function addLocationSection(){ data.sections.push({id:uid(),name:'',remark:'',photos:[],items:[row()],conformity:clone(conformityChecklist),hasConformity:false,collapsed:false}); save(); render(); setTimeout(()=>{const input=document.querySelector('#sections .section:last-child .section-name-input'); input?.scrollIntoView({behavior:'smooth',block:'center'}); input?.focus();},20); }
       document.getElementById('addYellowTab').addEventListener('click', addLocationSection);
       document.getElementById('printReport').addEventListener('click', async () => {
         document.activeElement?.blur();
