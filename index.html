@@ -194,6 +194,7 @@
       min-height: 46px; padding: 10px 15px; border-radius: 10px;
       background: var(--green-dark); color: #fff; font-weight: 800; cursor: pointer;
     }
+    .photo-label.gallery { border: 1px solid var(--green-dark); background: #fff; color: var(--green-dark); }
     .photo-label input { position: absolute; width: 1px; height: 1px; opacity: 0; }
     .photo-help { color: var(--muted); font-size: 12px; }
     .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 10px; margin-top: 14px; }
@@ -221,6 +222,8 @@
     .conformity-card.collapsed .conformity-content { display: none; }
     .conformity-card.collapsed .chevron { transform: rotate(-90deg); }
     .conformity-content { padding: 14px; }
+    .conformity-actions { display: flex; justify-content: flex-end; margin: 0 0 12px; }
+    .delete-conformity { min-height: 40px; padding: 8px 12px; border: 1px solid #bd2f2f; border-radius: 9px; background: #fff; color: #a51f1f; font-weight: 800; cursor: pointer; }
     .conformity-help { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
     .conformity-table-wrap { width: 100%; overflow-x: auto; }
     .conformity-table { width: 100%; min-width: 760px; border-collapse: collapse; }
@@ -344,7 +347,7 @@
     @media print {
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body { background: #fff; font-size: 10pt; }
-      .toolbar, .regulatory-editor, .tabs, .section-tabs, .section-actions, .item-footer, .add-row, #addYellowTab, .save-state, .toast, .photo-label, .photo-help, .cover-photo-remove, .thumb-remove, .item-collapse-toggle .chevron, .menu-trigger, .conformity-help-button, .help-dialog { display: none !important; }
+      .toolbar, .regulatory-editor, .tabs, .section-tabs, .section-actions, .conformity-actions, .item-footer, .add-row, #addYellowTab, .save-state, .toast, .photo-label, .photo-help, .cover-photo-remove, .thumb-remove, .item-collapse-toggle .chevron, .menu-trigger, .conformity-help-button, .help-dialog { display: none !important; }
       .page { width: 100%; }
       .hero { height: 262mm; padding: 4mm 8mm 16mm; overflow: hidden; break-after: page; page-break-after: always; }
       .hero .page { height: 100%; min-height: 0; display: flex; flex-direction: column; }
@@ -426,7 +429,8 @@
           <button class="cover-photo-open" id="coverPhotoOpen" type="button" aria-label="Agrandir la photo du chantier" hidden><img alt="Photo du chantier"></button>
         </div>
         <div class="cover-photo-controls">
-          <label class="photo-label">📷 Ajouter ou remplacer la photo<input id="coverPhotoInput" type="file" accept="image/*" capture="environment"></label>
+          <label class="photo-label">📷 Appareil photo<input id="coverPhotoInput" type="file" accept="image/*" capture="environment"></label>
+          <label class="photo-label gallery">🖼️ Choisir dans la galerie<input id="coverPhotoGalleryInput" type="file" accept="image/*"></label>
           <button class="cover-photo-remove" id="coverPhotoRemove" type="button" hidden>Supprimer la photo</button>
         </div>
       </div>
@@ -535,10 +539,11 @@
         </div>
         <div class="section-pane active" data-section-pane="equipment"><div class="items"></div><button class="btn add-row" type="button">＋ Ajouter un équipement</button></div>
         <div class="section-pane" data-section-pane="remark"><div class="field"><label>Remarque sur la localisation</label><textarea class="section-remark" placeholder="Saisissez vos observations sur cette localisation…"></textarea><div class="print-remark-value section-remark-print"></div></div></div>
-        <div class="section-pane" data-section-pane="photos"><div class="photo-actions"><label class="photo-label">📷 Ajouter une photo<input class="section-photo-input" type="file" accept="image/*" capture="environment" multiple></label><span class="photo-help">Vous pouvez ajouter plusieurs photos de la localisation.</span></div><div class="thumbs section-thumbs"></div></div>
+        <div class="section-pane" data-section-pane="photos"><div class="photo-actions"><label class="photo-label">📷 Appareil photo<input class="section-photo-input" type="file" accept="image/*" capture="environment"></label><label class="photo-label gallery">🖼️ Choisir dans la galerie<input class="section-gallery-input" type="file" accept="image/*" multiple></label><span class="photo-help">Le téléphone demande l’autorisation et n’ajoute que les photos sélectionnées.</span></div><div class="thumbs section-thumbs"></div></div>
         <section class="conformity-card">
           <button class="conformity-title" type="button" aria-expanded="true"><strong>CONFORMITÉ</strong><span class="chevron" aria-hidden="true">⌄</span></button>
           <div class="conformity-content">
+            <div class="conformity-actions"><button class="delete-conformity" type="button">Supprimer cette conformité</button></div>
             <p class="conformity-help">Contrôles propres à cette localisation. Touchez une case pour choisir V validé, Non concerné ou ✕.</p>
             <div class="conformity-table-wrap"><table class="conformity-table"><thead><tr><th>Famille de vérification</th><th>Point à vérifier</th><th>Conformité</th><th>Remarques</th></tr></thead><tbody class="conformity-rows"></tbody></table></div>
           </div>
@@ -571,7 +576,8 @@
       <div class="pane" data-pane="photos">
         <div class="photo-actions">
           <label class="photo-label">📷 Prendre une photo<input class="photo-input" type="file" accept="image/*" capture="environment"></label>
-          <span class="photo-help">Sur téléphone, ce bouton ouvre directement l’appareil photo.</span>
+          <label class="photo-label gallery">🖼️ Choisir dans la galerie<input class="photo-gallery-input" type="file" accept="image/*" multiple></label>
+          <span class="photo-help">Le téléphone demande l’autorisation et n’ajoute que les photos sélectionnées.</span>
         </div>
         <div class="thumbs"></div>
       </div>
@@ -917,7 +923,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           node.querySelector('.add-row').addEventListener('click', () => { section.items.push(row()); save(); render(); setTimeout(() => host.querySelector(`[data-section-id="${section.id}"] .item:last-child`)?.scrollIntoView({behavior:'smooth',block:'center'}), 20); });
           const addConformity=node.querySelector('.add-conformity');addConformity.hidden=Boolean(section.hasConformity)||locationKind(section.name)==='EXTÉRIEUR';addConformity.addEventListener('click',()=>{section.hasConformity=true;save();render();setTimeout(()=>document.querySelector(`[data-section-id="${section.id}"] .conformity-card`)?.scrollIntoView({behavior:'smooth',block:'start'}),20);});
           node.querySelector('.delete-section').addEventListener('click',async()=>{if(!confirm(`Supprimer la localisation « ${section.name||'sans nom'} » et tous ses équipements ?`))return;const photoIds=[...section.photos,...section.items.flatMap(item=>item.photos||[])];for(const photoId of photoIds)await deletePhoto(photoId);data.sections=data.sections.filter(entry=>entry.id!==section.id);save();render();toast('Localisation supprimée');});
-          node.querySelector('.section-photo-input').addEventListener('change',async event=>{const files=[...event.target.files];for(const file of files){try{const blob=await resizeImage(file,1800,.82),photoId=uid();await putPhoto(photoId,blob);section.photos.push(photoId);}catch{toast('Impossible d’enregistrer cette photo');}}event.target.value='';save();renderSectionPhotos(node,section);renderPhotoAppendix();});
+          const addSectionPhotos=async event=>{const files=[...event.target.files];for(const file of files){try{const blob=await resizeImage(file,1800,.82),photoId=uid();await putPhoto(photoId,blob);section.photos.push(photoId);}catch{toast('Impossible d’enregistrer cette photo');}}event.target.value='';if(files.length){save();renderSectionPhotos(node,section);renderPhotoAppendix();}};node.querySelectorAll('.section-photo-input,.section-gallery-input').forEach(input=>input.addEventListener('change',addSectionPhotos));
           renderSectionPhotos(node,section);
           renderConformity(section,node);
           host.append(node);
@@ -929,6 +935,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         const card=node.querySelector('.conformity-card'),toggle=node.querySelector('.conformity-title'),body=node.querySelector('.conformity-rows');body.replaceChildren();
         card.hidden=!section.hasConformity||locationKind(section.name)==='EXTÉRIEUR';if(card.hidden)return;
         toggle.addEventListener('click',()=>{const collapsed=card.classList.toggle('collapsed');toggle.setAttribute('aria-expanded',String(!collapsed));});
+        node.querySelector('.delete-conformity').addEventListener('click',()=>{if(!confirm(`Supprimer le tableau de conformité de « ${section.name||'cette localisation'} » ? Les réponses saisies seront effacées.`))return;section.hasConformity=false;section.conformity=clone(conformityChecklist);save();render();toast('Conformité supprimée');});
         section.conformity.forEach(check=>{
           const tr=document.createElement('tr'),family=document.createElement('td'),point=document.createElement('td'),statusCell=document.createElement('td'),remarkCell=document.createElement('td');
           family.dataset.label='Famille';point.dataset.label='Point à vérifier';statusCell.dataset.label='Conformité';remarkCell.dataset.label='Remarque';family.textContent=check.family;
@@ -965,14 +972,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           node.querySelectorAll('.tab,.pane').forEach(e => e.classList.remove('active'));
           tab.classList.add('active'); node.querySelector(`[data-pane="${tab.dataset.tab}"]`).classList.add('active');
         }));
-        node.querySelector('.photo-input').addEventListener('change', async event => {
+        const addItemPhotos=async event => {
           const files = [...event.target.files]; if (!files.length) return;
           for (const file of files) {
             try { const blob = await resizeImage(file, 1800, .82); const photoId = uid(); await putPhoto(photoId, blob); item.photos.push(photoId); }
             catch { toast('Impossible d’enregistrer cette photo'); }
           }
           event.target.value = ''; save(); renderPhotos(node, item); renderPhotoAppendix();
-        });
+        };node.querySelectorAll('.photo-input,.photo-gallery-input').forEach(input=>input.addEventListener('change',addItemPhotos));
         node.querySelector('.delete-item').addEventListener('click', async () => {
           if (!confirm(`Supprimer « ${item.equipment || 'cet équipement'} » ?`)) return;
           for (const photoId of item.photos) await deletePhoto(photoId);
@@ -1277,7 +1284,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       document.getElementById('reportTitle').addEventListener('input', e => { data.reportTitle=e.target.value;updateProjectNameDisplays();save(); });
       document.getElementById('regulatoryText').addEventListener('input', e => { data.regulatoryText=e.target.value;updateProjectNameDisplays();save(); });
       document.getElementById('projectName').addEventListener('input', e => { data.projectName=e.target.value;updateProjectNameDisplays();save(); });
-      document.getElementById('coverPhotoInput').addEventListener('change', async e => { const file=e.target.files[0]; if(!file)return; try{const blob=await resizeImage(file,1200,.76), encoded=await blobToDataURL(blob), previous=data.coverPhoto; data.coverPhotoData=encoded;data.coverPhoto='';if(previous)await deletePhoto(previous);save();await renderCoverPhoto();toast('Photo du chantier ajoutée');}catch{toast('Impossible d’enregistrer cette photo');} e.target.value=''; });
+      const addCoverPhoto=async e=>{const file=e.target.files[0];if(!file)return;try{const blob=await resizeImage(file,1200,.76),encoded=await blobToDataURL(blob),previous=data.coverPhoto;data.coverPhotoData=encoded;data.coverPhoto='';if(previous)await deletePhoto(previous);save();await renderCoverPhoto();toast('Photo du chantier ajoutée');}catch{toast('Impossible d’enregistrer cette photo');}e.target.value='';};document.getElementById('coverPhotoInput').addEventListener('change',addCoverPhoto);document.getElementById('coverPhotoGalleryInput').addEventListener('change',addCoverPhoto);
       document.getElementById('coverPhotoOpen').addEventListener('click',()=>{if(coverObjectUrl)openViewer(coverObjectUrl);});
       document.getElementById('coverPhotoRemove').addEventListener('click',async()=>{if((!data.coverPhoto&&!data.coverPhotoData)||!confirm('Supprimer la photo du chantier ?'))return;if(data.coverPhoto)await deletePhoto(data.coverPhoto);data.coverPhoto='';data.coverPhotoData='';save();renderCoverPhoto();});
       document.getElementById('visitDate').addEventListener('input', e => { data.visitDate=e.target.value; save(); });
