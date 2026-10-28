@@ -110,6 +110,7 @@
       backdrop-filter: blur(12px); scrollbar-width: none;
     }
     .toolbar::-webkit-scrollbar { display: none; }
+    .app-version { align-self: center; flex: 0 0 auto; padding: 6px 9px; border: 1px solid #9fcbb0; border-radius: 999px; background: #edf8f1; color: var(--green-dark); font-size: 11px; font-weight: 900; white-space: nowrap; }
     .btn {
       flex: 0 0 auto; min-height: 42px; padding: 10px 14px;
       border: 1px solid var(--green-dark); border-radius: 10px;
@@ -519,6 +520,7 @@
       <button class="btn" id="exportExcel" type="button">Exporter Excel</button>
       <label class="btn" for="importExcel">Importer Excel<input id="importExcel" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label>
       <button class="btn danger" id="resetReport" type="button">Réinitialiser</button>
+      <span class="app-version" title="Version de l’application">Version 14 - OCR</span>
     </div>
   </nav>
 
@@ -1519,7 +1521,11 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
           else alert('Ouvrez cette page dans Chrome ou Safari pour imprimer le PDF.');
         }, 180));
       });
-      window.addEventListener('beforeprint',updateProjectNameDisplays);
+      const printBlobLinks=[];
+      function securePrintLinks(){printBlobLinks.length=0;document.querySelectorAll('a[href^="blob:"]').forEach(link=>{printBlobLinks.push([link,link.getAttribute('href'),link.getAttribute('target')]);link.removeAttribute('href');link.removeAttribute('target');});}
+      function restoreScreenLinks(){for(const [link,href,target] of printBlobLinks){if(!link.isConnected)continue;link.setAttribute('href',href);if(target)link.setAttribute('target',target);}printBlobLinks.length=0;}
+      window.addEventListener('beforeprint',()=>{updateProjectNameDisplays();securePrintLinks();});
+      window.addEventListener('afterprint',restoreScreenLinks);
       document.getElementById('exportExcel').addEventListener('click', exportExcel);
       document.getElementById('importExcel').addEventListener('change', async event => {const file=event.target.files[0];if(!file)return;try{await importExcelFile(file);}catch(error){toast(error.message||'Import Excel impossible');}event.target.value='';});
       document.getElementById('resetReport').addEventListener('click', () => { if(!confirm('Réinitialiser toutes les saisies ? Les photos seront dissociées du rapport.')) return; data=clone(emptySeed); save(); load(); render(); toast('Rapport réinitialisé'); });
