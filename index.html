@@ -261,6 +261,9 @@
     .help-disclaimer { margin-top: 18px !important; padding: 10px 12px; border-left: 4px solid var(--amber); background: #fff8df; font-size: 12px; }
     .report-summary { margin-top: 22px; padding: 16px; border-radius: 14px; background: #fff; border: 1px solid #dce5df; box-shadow: var(--shadow); }
     .report-summary h2 { margin: 0 0 14px; color: var(--green-dark); font-size: 21px; text-transform: uppercase; }
+    .quote-summary { margin-top: 16px; padding: 16px; border-radius: 14px; background: #fff; border: 1px solid #b9d8c5; box-shadow: var(--shadow); }
+    .quote-summary h2 { margin: 0 0 14px; color: var(--green-dark); font-size: 21px; text-transform: uppercase; }
+    .quote-summary .summary-table th { background: #dff3e7; }
     .summary-table-wrap { width: 100%; overflow-x: auto; }
     .summary-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 680px; }
     .summary-table th, .summary-table td { padding: 10px; border: 1px solid var(--line); text-align: left; vertical-align: middle; }
@@ -434,6 +437,9 @@
       .print-equipment-value.adaptive-text-long { font-size: 8pt !important; } .print-equipment-value.adaptive-text-very-long { font-size: 7pt !important; }
       .thumbs { grid-template-columns: repeat(5, 1fr); }
       .report-summary { break-before: page; box-shadow: none; border-radius: 0; }
+      .quote-summary { margin-top: 8mm; box-shadow: none; border-radius: 0; break-inside: auto; }
+      .quote-summary h2, .quote-summary thead { break-after: avoid-page; }
+      .quote-summary tr { break-inside: avoid-page; page-break-inside: avoid; }
       .summary-table-wrap { overflow: visible; }
       .summary-table { min-width: 0; }
       .summary-table th, .summary-table td { padding: 5px; font-size: 8pt; line-height: 1.2; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
@@ -543,6 +549,15 @@
       <div class="chart-area">
         <div class="pie-chart" id="criticalityChart" role="img" aria-label="Répartition des équipements par criticité"></div>
         <div class="pie-legend" id="criticalityLegend"></div>
+      </div>
+    </section>
+    <section class="quote-summary" aria-labelledby="quoteSummaryTitle">
+      <h2 id="quoteSummaryTitle">Synthèse des devis</h2>
+      <div class="summary-table-wrap">
+        <table class="summary-table">
+          <thead><tr><th>Équipement</th><th>Modèle</th><th>Code affaire</th><th>Montant total HT</th></tr></thead>
+          <tbody id="quoteSummaryRows"></tbody>
+        </table>
       </div>
     </section>
     <section class="photo-appendix" id="photoAppendix" aria-label="Photos des équipements en grand format"></section>
@@ -686,6 +701,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
       let saveTimer = null;
       let coverObjectUrl = null;
       let appendixObjectUrls = [];
+      let quoteMetadataRefreshRunning = false;
       const locations = ['CHAUFFERIE','LOCAL PAC','LOCAL CTA',"LOCAL TRAITEMENT D'EAU",'LOCAL TGBT','SOUS-STATION','EXTÉRIEUR'];
       const equipmentCatalog = ['CHAUDIÈRE','BRÛLEUR','PAC','GEG','POMPE','PRODUCTION ECS','POMPE DE BOUCLE','CIRCULATEUR','ARMOIRE ÉLECTRIQUE','VMC','CTA','POT À BOUE','ADOUCISSEUR','INJECTION PRODUIT','RÉGULATION','V3V'];
       const brandCatalogs = {
@@ -908,7 +924,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
       };
 
       function uid(){ return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)); }
-      function row(equipment='', quantity='', brand='', location='', remark='', status='ok') { return { id: uid(), equipment, quantity, brand, model: '', serialNumber: '', location, remark, status, photos: [], quoteId: '', quoteName: '' }; }
+      function row(equipment='', quantity='', brand='', location='', remark='', status='ok') { return { id: uid(), equipment, quantity, brand, model: '', serialNumber: '', location, remark, status, photos: [], quoteId: '', quoteName: '', quoteBusinessCode: '', quoteTotalHT: '', quoteMetadataState: '' }; }
       function clone(v){ return JSON.parse(JSON.stringify(v)); }
       function cleanData(candidate){
         if (!candidate || !Array.isArray(candidate.sections)) throw new Error('Format de rapport invalide');
@@ -920,7 +936,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
         candidate.agency = agencies[candidate.agency] ? candidate.agency : 'marseille';
         const legacyChecks=Array.isArray(candidate.conformity)?candidate.conformity:[];
         candidate.sections.forEach(s => {
-          s.id ||= uid(); s.name = normalizeLocation(s.name); delete s.specificName; s.remark ??= ''; s.photos ||= []; s.items ||= []; s.collapsed=Boolean(s.collapsed);s.items.forEach(i => { i.id ||= uid(); i.photos ||= []; i.status ||= 'ok'; i.model ??= ''; i.location ??= ''; i.quoteId=String(i.quoteId||'');i.quoteName=String(i.quoteName||''); });
+          s.id ||= uid(); s.name = normalizeLocation(s.name); delete s.specificName; s.remark ??= ''; s.photos ||= []; s.items ||= []; s.collapsed=Boolean(s.collapsed);s.items.forEach(i => { i.id ||= uid(); i.photos ||= []; i.status ||= 'ok'; i.model ??= ''; i.location ??= ''; i.quoteId=String(i.quoteId||'');i.quoteName=String(i.quoteName||'');i.quoteBusinessCode=String(i.quoteBusinessCode||'');i.quoteTotalHT=String(i.quoteTotalHT||'');i.quoteMetadataState=i.quoteId?(i.quoteMetadataState==='done'||i.quoteMetadataState==='error'?i.quoteMetadataState:'pending'):''; });
           const savedChecks=new Map((Array.isArray(s.conformity)?s.conformity:legacyChecks).map(check=>[check.id,check]));
           s.conformity=conformityChecklist.map(base=>{const saved=savedChecks.get(base.id)||{};return {...base,status:['valid','na','invalid'].includes(saved.status)?saved.status:'',remark:String(saved.remark||'')};});
           if(typeof s.hasConformity!=='boolean')s.hasConformity=s.conformity.some(check=>check.status||check.remark);
@@ -1060,7 +1076,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
           }
           event.target.value = ''; save(); renderPhotos(node, item); renderPhotoAppendix();
         };node.querySelectorAll('.photo-input,.photo-gallery-input').forEach(input=>input.addEventListener('change',addItemPhotos));
-        node.querySelector('.quote-input').addEventListener('change',async event=>{const file=event.target.files[0];event.target.value='';if(!file)return;if(file.type!=='application/pdf'&&!file.name.toLowerCase().endsWith('.pdf')){toast('Sélectionnez un fichier PDF');return;}try{const quoteId=uid(),previous=item.quoteId;await putPhoto(quoteId,file);item.quoteId=quoteId;item.quoteName=file.name||'Devis.pdf';if(previous)await deletePhoto(previous);save();await renderQuote(node,item);await renderPhotoAppendix();toast('Devis ajouté à l’annexe');}catch{toast('Impossible d’enregistrer ce devis');}});
+        node.querySelector('.quote-input').addEventListener('change',async event=>{const file=event.target.files[0];event.target.value='';if(!file)return;if(file.type!=='application/pdf'&&!file.name.toLowerCase().endsWith('.pdf')){toast('Sélectionnez un fichier PDF');return;}try{const quoteId=uid(),previous=item.quoteId;await putPhoto(quoteId,file);item.quoteId=quoteId;item.quoteName=file.name||'Devis.pdf';item.quoteBusinessCode='';item.quoteTotalHT='';item.quoteMetadataState='extracting';if(previous)await deletePhoto(previous);save();renderQuoteSummary();await renderQuote(node,item);const metadata=await extractQuoteMetadata(file);item.quoteBusinessCode=metadata.businessCode;item.quoteTotalHT=metadata.totalHT;item.quoteMetadataState='done';save();renderQuoteSummary();await renderPhotoAppendix();toast('Devis ajouté et analysé');}catch(error){console.error(error);item.quoteMetadataState=item.quoteId?'error':'';save();renderQuoteSummary();toast(item.quoteId?'Devis ajouté, mais informations non détectées':'Impossible d’enregistrer ce devis');}});
         node.querySelector('.delete-item').addEventListener('click', async () => {
           if (!confirm(`Supprimer « ${item.equipment || 'cet équipement'} » ?`)) return;
           for (const assetId of [...item.photos,item.quoteId].filter(Boolean)) await deletePhoto(assetId);
@@ -1072,7 +1088,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
         const wrap=node.querySelector('.quote-preview'),count=node.querySelector('.quote-count');wrap.replaceChildren();count.textContent=item.quoteId?'(1)':'';if(node._quoteUrl){URL.revokeObjectURL(node._quoteUrl);node._quoteUrl='';}
         if(!item.quoteId){const empty=document.createElement('div');empty.className='empty-photos';empty.textContent='Aucun devis importé pour cet équipement';wrap.append(empty);return;}
         const blob=await getPhoto(item.quoteId);if(!blob){const missing=document.createElement('div');missing.className='empty-photos';missing.textContent='Le fichier du devis est introuvable';wrap.append(missing);return;}
-        const url=URL.createObjectURL(blob),card=document.createElement('div'),icon=document.createElement('span'),name=document.createElement('strong'),open=document.createElement('a'),remove=document.createElement('button');node._quoteUrl=url;card.className='quote-card';icon.className='quote-icon';icon.textContent='PDF';name.textContent=item.quoteName||'Devis.pdf';open.href=url;open.target='_blank';open.rel='noopener';open.textContent='Ouvrir';open.setAttribute('aria-label',`Ouvrir le devis ${name.textContent}`);remove.className='quote-remove';remove.type='button';remove.textContent='Supprimer';remove.addEventListener('click',async()=>{if(!confirm(`Supprimer le devis « ${name.textContent} » ?`))return;await deletePhoto(item.quoteId);item.quoteId='';item.quoteName='';save();await renderQuote(node,item);await renderPhotoAppendix();toast('Devis supprimé');});card.append(icon,name,open,remove);wrap.append(card);
+        const url=URL.createObjectURL(blob),card=document.createElement('div'),icon=document.createElement('span'),name=document.createElement('strong'),open=document.createElement('a'),remove=document.createElement('button');node._quoteUrl=url;card.className='quote-card';icon.className='quote-icon';icon.textContent='PDF';name.textContent=item.quoteName||'Devis.pdf';open.href=url;open.target='_blank';open.rel='noopener';open.textContent='Ouvrir';open.setAttribute('aria-label',`Ouvrir le devis ${name.textContent}`);remove.className='quote-remove';remove.type='button';remove.textContent='Supprimer';remove.addEventListener('click',async()=>{if(!confirm(`Supprimer le devis « ${name.textContent} » ?`))return;await deletePhoto(item.quoteId);item.quoteId='';item.quoteName='';item.quoteBusinessCode='';item.quoteTotalHT='';item.quoteMetadataState='';save();renderQuoteSummary();await renderQuote(node,item);await renderPhotoAppendix();toast('Devis supprimé');});card.append(icon,name,open,remove);wrap.append(card);
       }
       async function renderSectionPhotos(node,section){
         const wrap=node.querySelector('.section-thumbs'),count=node.querySelector('.section-photo-count');wrap.replaceChildren();count.textContent=section.photos.length?`(${section.photos.length})`:'';
@@ -1102,6 +1118,33 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
           const ready=()=>{clearTimeout(timeout);window.pdfjsLib?.getDocument?resolve(window.pdfjsLib):reject(new Error('Moteur PDF indisponible'));};
           window.addEventListener('pdfjs-ready',ready,{once:true});
         });
+      }
+      function pdfTextLines(items){
+        const rows=[];
+        items.filter(item=>String(item.str||'').trim()).forEach(item=>{const x=Number(item.transform?.[4])||0,y=Number(item.transform?.[5])||0;let row=rows.find(candidate=>Math.abs(candidate.y-y)<2.5);if(!row){row={y,parts:[]};rows.push(row);}row.parts.push({x,text:String(item.str).trim()});});
+        return rows.sort((a,b)=>b.y-a.y).map(row=>row.parts.sort((a,b)=>a.x-b.x).map(part=>part.text).join(' ').replace(/\s+/g,' ').trim()).filter(Boolean);
+      }
+      function cleanQuoteCode(value){
+        const code=String(value||'').trim().replace(/^[\s:#-]+|[\s,;:.]+$/g,'');
+        return /^(?:DE|DU|LE|LA|HT|TOTAL|DEVIS)$/i.test(code)?'':code;
+      }
+      function cleanQuoteAmount(value){
+        const amount=String(value||'').replace(/[\u00a0\u202f]/g,' ').replace(/\s+/g,' ').trim().replace(/[\s,;:.]+$/,'');
+        return /\d/.test(amount)?amount:'';
+      }
+      async function extractQuoteMetadata(blob){
+        const pdfjs=await waitForPdfRenderer(),documentPdf=await pdfjs.getDocument({data:new Uint8Array(await blob.arrayBuffer())}).promise,lines=[];
+        for(let pageNumber=1;pageNumber<=documentPdf.numPages;pageNumber++){const page=await documentPdf.getPage(pageNumber),content=await page.getTextContent();lines.push(...pdfTextLines(content.items));}
+        const text=lines.join('\n'),flat=text.replace(/\s+/g,' ');
+        const codePatterns=[/(?:code|n[°ºo]|num[eé]ro)?\s*(?:d['’]\s*)?affaire\s*[:#-]?\s*([A-Z0-9][A-Z0-9._\/-]{2,})/i,/(?:r[eé]f[eé]rence|r[eé]f\.?)[\s:]*(?:affaire)?\s*[:#-]?\s*([A-Z0-9][A-Z0-9._\/-]{2,})/i];
+        let businessCode='';for(const pattern of codePatterns){const match=flat.match(pattern);businessCode=cleanQuoteCode(match?.[1]);if(businessCode)break;}
+        const totalPatterns=[/(?:montant\s+)?total(?:\s+g[eé]n[eé]ral)?\s*h\.?\s*t\.?\s*[:=-]?\s*([0-9][0-9\s\u00a0\u202f.,]*)(?:\s*(?:€|eur))?/ig,/([0-9][0-9\s\u00a0\u202f.,]*)\s*(?:€|eur)?\s*(?:montant\s+)?total(?:\s+g[eé]n[eé]ral)?\s*h\.?\s*t\.?/ig];
+        let totalHT='';for(const pattern of totalPatterns){let match;while((match=pattern.exec(flat))!==null){const candidate=cleanQuoteAmount(match[1]);if(candidate)totalHT=candidate;}if(totalHT)break;}
+        return {businessCode,totalHT};
+      }
+      async function refreshQuoteMetadata(){
+        if(quoteMetadataRefreshRunning)return;const pending=data.sections.flatMap(section=>section.items).filter(item=>item.quoteId&&(!item.quoteMetadataState||item.quoteMetadataState==='pending'));if(!pending.length)return;quoteMetadataRefreshRunning=true;
+        try{for(const item of pending){item.quoteMetadataState='extracting';save();renderQuoteSummary();try{const blob=await getPhoto(item.quoteId);if(!blob)throw new Error('Devis introuvable');const metadata=await extractQuoteMetadata(blob);item.quoteBusinessCode=metadata.businessCode;item.quoteTotalHT=metadata.totalHT;item.quoteMetadataState='done';}catch(error){console.error(error);item.quoteMetadataState='error';}save();renderQuoteSummary();}}finally{quoteMetadataRefreshRunning=false;}
       }
       async function renderQuotePdf(blob,container,url){
         const loading=document.createElement('div');loading.className='quote-loading';loading.textContent='Chargement du devis…';container.replaceChildren(loading);
@@ -1160,6 +1203,13 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
         const chart=document.getElementById('criticalityChart');chart.style.background=total?`conic-gradient(var(--green) 0 ${ok}%, var(--amber) ${ok}% ${ok+vigilance}%, var(--red) ${ok+vigilance}% 100%)`:'#e4e9e6';chart.setAttribute('aria-label',total?`Éléments satisfaisants ${Math.round(ok)} %, points de vigilance ${Math.round(vigilance)} %, solutions requises ${Math.round(solution)} %`:'Aucun équipement saisi');
         const legend=document.getElementById('criticalityLegend');legend.replaceChildren();
         [['ok','Éléments satisfaisants',counts.ok,ok,'var(--green)'],['vigilance','Points de vigilance',counts.vigilance,vigilance,'var(--amber)'],['solution','Solutions requises',counts.solution,solution,'var(--red)']].forEach(([,text,count,pct,color])=>{const row=document.createElement('div'),swatch=document.createElement('i'),name=document.createElement('span'),value=document.createElement('strong');row.className='pie-legend-row';swatch.style.background=color;name.textContent=text;value.textContent=`${Math.round(pct)} % (${count})`;row.append(swatch,name,value);legend.append(row);});
+        renderQuoteSummary();
+        refreshQuoteMetadata();
+      }
+      function renderQuoteSummary(){
+        const body=document.getElementById('quoteSummaryRows');if(!body)return;body.replaceChildren();const quotes=data.sections.flatMap(section=>section.items.filter(item=>item.quoteId).map(item=>({item,section})));
+        if(!quotes.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=4;td.className='summary-empty';td.textContent='Aucun devis importé';tr.append(td);body.append(tr);return;}
+        quotes.forEach(({item})=>{const tr=document.createElement('tr'),equipment=document.createElement('td'),model=document.createElement('td'),code=document.createElement('td'),amount=document.createElement('td'),state=item.quoteMetadataState;equipment.dataset.label='Équipement';model.dataset.label='Modèle';code.dataset.label='Code affaire';amount.dataset.label='Montant total HT';equipment.textContent=item.equipment||'—';model.textContent=item.model||'—';code.textContent=state==='extracting'?'Analyse en cours…':state==='error'?'Lecture impossible':item.quoteBusinessCode||'Non détecté';amount.textContent=state==='extracting'?'Analyse en cours…':state==='error'?'Lecture impossible':item.quoteTotalHT?(item.quoteTotalHT.match(/(?:€|eur)$/i)?item.quoteTotalHT:`${item.quoteTotalHT} €`):'Non détecté';[equipment,model,code,amount].forEach(cell=>applyAdaptiveText(cell,cell.textContent));tr.append(equipment,model,code,amount);body.append(tr);});
       }
       function resizeImage(file, maxSide, quality){
         return new Promise((resolve,reject) => {
@@ -1370,7 +1420,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
           if(!String(equipment).trim())return;const normalizedSection=normalizeLocation(sectionName),key=sectionId||`name:${normalizedSection}`;let section=sectionMap.get(key);
           if(!section){section={id:sectionId||uid(),name:normalizedSection,remark:'',photos:[],items:[],hasConformity:false,collapsed:false};sectionMap.set(key,section);sections.push(section);}
           const old=oldItems.get(itemId),statusText=String(criticality).toLowerCase(),status=statusText.includes('solution')?'solution':statusText.includes('vigilance')?'vigilance':'ok';
-          section.items.push({id:itemId||uid(),equipment:String(equipment),quantity:String(quantity),brand:String(brand),model:String(model),serialNumber:String(serialNumber),location:String(location),remark:String(remark),status,photos:old?.photos||[],quoteId:String(old?.quoteId||''),quoteName:String(old?.quoteName||'')});
+          section.items.push({id:itemId||uid(),equipment:String(equipment),quantity:String(quantity),brand:String(brand),model:String(model),serialNumber:String(serialNumber),location:String(location),remark:String(remark),status,photos:old?.photos||[],quoteId:String(old?.quoteId||''),quoteName:String(old?.quoteName||''),quoteBusinessCode:String(old?.quoteBusinessCode||''),quoteTotalHT:String(old?.quoteTotalHT||''),quoteMetadataState:String(old?.quoteMetadataState||'')});
         });
         if(locationRows.length>1){const headers=new Map((locationRows[0]||[]).map((value,index)=>[normalizeHeader(value),index]));const readLocation=(cells,...labels)=>{for(const label of labels){const index=headers.get(normalizeHeader(label));if(index!==undefined)return cells[index]??'';}return '';};locationRows.slice(1).forEach(values=>{const cells=values.map(value=>value??''),id=readLocation(cells,'ID localisation'),name=normalizeLocation(readLocation(cells,'Localisation')),remark=readLocation(cells,'Remarque'),hasConformity=/^(oui|yes|1|vrai)$/i.test(String(readLocation(cells,'Conformité ajoutée','Conformité'))),key=id||`name:${name}`;if(!name&&!remark)return;let section=sectionMap.get(key)||sections.find(entry=>entry.id===id)||sections.find(entry=>entry.name===name);if(!section){section={id:id||uid(),name,remark:String(remark),photos:[],items:[],hasConformity,collapsed:false};sectionMap.set(key,section);sections.push(section);}else{section.remark=String(remark);section.hasConformity=hasConformity;}});}
         if(!sections.length)throw new Error('Aucune localisation ni aucun équipement trouvé dans le fichier Excel');
