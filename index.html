@@ -92,7 +92,8 @@
     .cover-photo-open img { width: 100%; height: 100%; display: block; object-fit: cover; }
     .cover-photo-empty { width: 100%; height: 100%; display: grid; place-items: center; padding: 24px; color: var(--muted); text-align: center; font-weight: 700; }
     .cover-photo-controls { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 10px; }
-    .cover-photo-remove { min-height: 44px; padding: 9px 13px; border: 1px solid #bd2f2f; border-radius: 10px; background: #fff; color: #a51f1f; font-weight: 800; cursor: pointer; }
+    .cover-photo-remove, .cover-photo-rotate { min-height: 44px; padding: 9px 13px; border: 1px solid #bd2f2f; border-radius: 10px; background: #fff; color: #a51f1f; font-weight: 800; cursor: pointer; }
+    .cover-photo-rotate { border-color: var(--green-dark); color: var(--green-dark); }
     .meta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
     .agency-block { margin-top: 20px; padding-top: 16px; border-top: 2px solid #dfe7e2; }
     .agency-picker { max-width: 320px; margin-bottom: 12px; }
@@ -171,8 +172,8 @@
     .item-collapse-toggle .chevron { grid-column: 2; grid-row: 1 / span 2; align-self: center; margin-left: 10px; color: var(--green-dark); font-size: 20px; }
     .item.collapsed .item-body { display: none; }
     .item.collapsed .item-collapse-toggle .chevron { transform: rotate(-90deg); }
-    .equipment { margin: 0; font-size: 16px; font-weight: 900; text-transform: uppercase; }
-    .summary { margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .equipment { grid-column: 1; grid-row: 1; margin: 0; min-width: 0; font-size: 16px; font-weight: 900; line-height: 1.2; text-transform: uppercase; overflow-wrap: anywhere; word-break: break-word; }
+    .summary { grid-column: 1; grid-row: 2; min-width: 0; margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.3; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
     .tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
     .tab {
       min-height: 42px; padding: 8px 4px; border: 0; border-right: 1px solid var(--line);
@@ -205,6 +206,7 @@
       position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; padding: 0;
       border: 0; border-radius: 50%; background: rgba(0,0,0,.72); color: #fff; font-weight: 900; cursor: pointer;
     }
+    .thumb-rotate { position: absolute; left: 4px; bottom: 4px; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%; background: rgba(8,122,62,.9); color: #fff; font-size: 19px; font-weight: 900; cursor: pointer; }
     .empty-photos { padding: 16px; border: 1px dashed var(--line); border-radius: 9px; color: var(--muted); text-align: center; font-size: 13px; }
     .item-footer { display: flex; justify-content: flex-end; padding: 0 14px 12px; }
     .delete-item { padding: 7px 10px; border: 0; background: transparent; color: #a12a2a; font-size: 12px; font-weight: 800; cursor: pointer; }
@@ -260,15 +262,18 @@
     .report-summary { margin-top: 22px; padding: 16px; border-radius: 14px; background: #fff; border: 1px solid #dce5df; box-shadow: var(--shadow); }
     .report-summary h2 { margin: 0 0 14px; color: var(--green-dark); font-size: 21px; text-transform: uppercase; }
     .summary-table-wrap { width: 100%; overflow-x: auto; }
-    .summary-table { width: 100%; border-collapse: collapse; min-width: 520px; }
+    .summary-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 680px; }
     .summary-table th, .summary-table td { padding: 10px; border: 1px solid var(--line); text-align: left; vertical-align: middle; }
     .summary-table th { background: var(--yellow); color: #111; font-size: 12px; text-transform: uppercase; }
-    .summary-table td { font-size: 13px; }
-    .criticality { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; }
+    .summary-table td { font-size: 13px; line-height: 1.3; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+    .summary-table th:nth-child(1) { width: 23%; } .summary-table th:nth-child(2) { width: 22%; } .summary-table th:nth-child(3) { width: 31%; } .summary-table th:nth-child(4) { width: 24%; }
+    .adaptive-text-long { font-size: 12px !important; } .adaptive-text-very-long { font-size: 11px !important; }
+    .print-equipment-value { display: none; }
+    .criticality { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; font-weight: 700; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
     .criticality i { width: 13px; height: 13px; flex: 0 0 auto; border-radius: 3px; background: var(--green); }
     .criticality.vigilance i { background: var(--amber); }
     .criticality.solution i { background: var(--red); }
-    .chart-area { display: grid; grid-template-columns: minmax(180px, 260px) 1fr; align-items: center; gap: 28px; margin-top: 24px; }
+    .chart-area { display: grid; grid-template-columns: minmax(180px, 260px) 1fr; align-items: center; gap: 28px; margin-top: 24px; break-inside: avoid-page; page-break-inside: avoid; }
     .pie-chart { width: min(100%, 240px); aspect-ratio: 1; margin: auto; border-radius: 50%; background: #e4e9e6; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
     .pie-legend { display: grid; gap: 11px; }
     .pie-legend-row { display: grid; grid-template-columns: 18px 1fr auto; align-items: center; gap: 9px; }
@@ -325,6 +330,14 @@
       .conformity-table td { padding: 9px; border: 0; border-bottom: 1px solid var(--line); }
       .conformity-table td:last-child { border-bottom: 0; }
       .conformity-table td::before { display: block; margin-bottom: 5px; color: var(--green-dark); content: attr(data-label); font-size: 10px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
+      .summary-table-wrap { overflow: visible; }
+      .summary-table { min-width: 0; table-layout: auto; border-collapse: separate; border-spacing: 0 10px; }
+      .summary-table thead { display: none; }
+      .summary-table tbody, .summary-table tr, .summary-table td { display: block; width: 100%; }
+      .summary-table tr { overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: #fff; }
+      .summary-table td { padding: 9px; border: 0; border-bottom: 1px solid var(--line); }
+      .summary-table td:last-child { border-bottom: 0; }
+      .summary-table td::before { display: block; margin-bottom: 5px; color: var(--green-dark); content: attr(data-label); font-size: 10px; font-weight: 900; letter-spacing: .04em; text-transform: uppercase; }
     }
     @page {
       size: A4 portrait;
@@ -347,7 +360,7 @@
     @media print {
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body { background: #fff; font-size: 10pt; }
-      .toolbar, .regulatory-editor, .tabs, .section-tabs, .section-actions, .conformity-actions, .item-footer, .add-row, #addYellowTab, .save-state, .toast, .photo-label, .photo-help, .cover-photo-remove, .thumb-remove, .item-collapse-toggle .chevron, .menu-trigger, .conformity-help-button, .help-dialog { display: none !important; }
+      .toolbar, .regulatory-editor, .tabs, .section-tabs, .section-actions, .conformity-actions, .item-footer, .add-row, #addYellowTab, .save-state, .toast, .photo-label, .photo-help, .cover-photo-remove, .cover-photo-rotate, .thumb-remove, .thumb-rotate, .item-collapse-toggle .chevron, .menu-trigger, .conformity-help-button, .help-dialog { display: none !important; }
       .page { width: 100%; }
       .hero { height: 262mm; padding: 4mm 8mm 16mm; overflow: hidden; break-after: page; page-break-after: always; }
       .hero .page { height: 100%; min-height: 0; display: flex; flex-direction: column; }
@@ -401,11 +414,16 @@
       .conformity-table tr[data-conformity-status="invalid"] td { background: #fbe0e0 !important; border-color: #d47c7c !important; }
       .conformity-table tr[data-conformity-status="invalid"] .print-field-value { border-color: #bd2f2f; background: #fff0f0; color: #9d1e1e; font-weight: 800; }
       .print-remark-value { display: block; width: 100%; padding: 7px 8px; border: 1px solid #777; border-radius: 4px; background: #fff; font-size: 9pt; line-height: 1.35; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+      .pane[data-pane="details"] input, .pane[data-pane="details"] select, .pane[data-pane="details"] .input-menu { display: none !important; }
+      .print-equipment-value { display: block; width: 100%; min-height: 24px; padding: 5px 6px; border: 1px solid #777; border-radius: 4px; background: #fff; font-size: 9pt; line-height: 1.25; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+      .print-equipment-value.adaptive-text-long { font-size: 8pt !important; } .print-equipment-value.adaptive-text-very-long { font-size: 7pt !important; }
       .thumbs { grid-template-columns: repeat(5, 1fr); }
       .report-summary { break-before: page; box-shadow: none; border-radius: 0; }
       .summary-table-wrap { overflow: visible; }
       .summary-table { min-width: 0; }
-      .chart-area { grid-template-columns: 70mm 1fr; }
+      .summary-table th, .summary-table td { padding: 5px; font-size: 8pt; line-height: 1.2; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+      .chart-area { grid-template-columns: 70mm 1fr; break-inside: avoid-page !important; page-break-inside: avoid !important; }
+      .pie-chart, .pie-legend { break-inside: avoid-page !important; page-break-inside: avoid !important; }
       .photo-appendix:not(:empty) { display: block; break-before: page; page-break-before: always; }
       .photo-sheet { break-after: page; page-break-after: always; }
       .photo-sheet:last-child { break-after: auto; page-break-after: auto; }
@@ -431,6 +449,7 @@
         <div class="cover-photo-controls">
           <label class="photo-label">📷 Appareil photo<input id="coverPhotoInput" type="file" accept="image/*" capture="environment"></label>
           <label class="photo-label gallery">🖼️ Choisir dans la galerie<input id="coverPhotoGalleryInput" type="file" accept="image/*"></label>
+          <button class="cover-photo-rotate" id="coverPhotoRotate" type="button" hidden>↻ Tourner la photo</button>
           <button class="cover-photo-remove" id="coverPhotoRemove" type="button" hidden>Supprimer la photo</button>
         </div>
       </div>
@@ -494,7 +513,7 @@
       <h2 id="summaryTitle">Synthèse des équipements</h2>
       <div class="summary-table-wrap">
         <table class="summary-table">
-          <thead><tr><th>Équipement</th><th>Localisation</th><th>Criticité</th></tr></thead>
+          <thead><tr><th>Équipement</th><th>Modèle</th><th>Localisation</th><th>Criticité</th></tr></thead>
           <tbody id="summaryRows"></tbody>
         </table>
       </div>
@@ -905,6 +924,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         const lists = { locationSuggestions: locations, equipmentSuggestions: suggestions.equipment };
         Object.entries(lists).forEach(([id, values]) => { const list=document.getElementById(id); values.forEach(value => { const option=document.createElement('option'); option.value=value; list.append(option); }); });
       }
+      function applyAdaptiveText(element,value){const length=String(value||'').trim().length;element.classList.toggle('adaptive-text-long',length>28&&length<=52);element.classList.toggle('adaptive-text-very-long',length>52);}
 
       function render(){
         const host = document.getElementById('sections'); host.replaceChildren();
@@ -964,7 +984,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         const refresh = () => { title.textContent = item.equipment || 'Équipement sans nom'; summary.textContent = [item.quantity && `Qté ${item.quantity}`, item.brand, item.model,item.location].filter(Boolean).join(' · '); node.dataset.status = item.status; updateBrandSuggestions();updateModelSuggestions(); const sel = node.querySelector('.status-select'); if(sel) sel.style.borderLeftColor = statusColor(item.status); };
         node.querySelectorAll('[data-key]').forEach(control => {
           const key = control.dataset.key; control.value = item[key] ?? '';
-          control.addEventListener('input', () => { item[key] = control.value; refresh(); save(); renderSummary(); if(key==='equipment'||key==='location')renderPhotoAppendix(); });
+          if(key!=='remark'){const printValue=document.createElement('div');printValue.className='print-equipment-value';control.closest('.field').append(printValue);const updatePrintValue=()=>{const value=key==='status'?statusLabel(control.value):control.value||'—';printValue.textContent=value;applyAdaptiveText(printValue,value);applyAdaptiveText(control,value);};updatePrintValue();control.addEventListener('input',updatePrintValue);control.addEventListener('change',updatePrintValue);}
+          control.addEventListener('input', () => { item[key] = control.value; refresh(); save(); renderSummary(); if(['equipment','brand','model','serialNumber','location'].includes(key))renderPhotoAppendix(); });
         });
         const itemRemarkInput=node.querySelector('[data-key="remark"]'),itemRemarkPrint=node.querySelector('.item-remark-print');itemRemarkPrint.textContent=item.remark||'';itemRemarkInput.addEventListener('input',()=>{itemRemarkPrint.textContent=itemRemarkInput.value;});
         node.querySelector('.item-collapse-toggle').addEventListener('click',()=>{const collapsed=node.classList.toggle('collapsed');node.querySelector('.item-collapse-toggle').setAttribute('aria-expanded',String(!collapsed));});
@@ -990,7 +1011,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       async function renderSectionPhotos(node,section){
         const wrap=node.querySelector('.section-thumbs'),count=node.querySelector('.section-photo-count');wrap.replaceChildren();count.textContent=section.photos.length?`(${section.photos.length})`:'';
         if(!section.photos.length){const empty=document.createElement('div');empty.className='empty-photos';empty.textContent='Aucune photo pour cette localisation';wrap.append(empty);return;}
-        for(const photoId of section.photos){const blob=await getPhoto(photoId);if(!blob)continue;const url=URL.createObjectURL(blob),tile=document.createElement('div'),open=document.createElement('a'),img=document.createElement('img'),remove=document.createElement('button');tile.className='thumb';open.className='thumb-open';open.href=`#photo-${photoId}`;open.setAttribute('aria-label','Agrandir la photo de la localisation');img.src=url;img.alt='Photo de la localisation';open.append(img);open.addEventListener('click',event=>{event.preventDefault();openViewer(url);});remove.className='thumb-remove';remove.type='button';remove.textContent='×';remove.setAttribute('aria-label','Supprimer la photo');remove.addEventListener('click',async()=>{if(!confirm('Supprimer cette photo ?'))return;await deletePhoto(photoId);section.photos=section.photos.filter(id=>id!==photoId);URL.revokeObjectURL(url);save();renderSectionPhotos(node,section);renderPhotoAppendix();});tile.append(open,remove);wrap.append(tile);}
+        for(const photoId of section.photos){const blob=await getPhoto(photoId);if(!blob)continue;const url=URL.createObjectURL(blob),tile=document.createElement('div'),open=document.createElement('a'),img=document.createElement('img'),rotate=document.createElement('button'),remove=document.createElement('button');tile.className='thumb';open.className='thumb-open';open.href=`#photo-${photoId}`;open.setAttribute('aria-label','Agrandir la photo de la localisation');img.src=url;img.alt='Photo de la localisation';open.append(img);open.addEventListener('click',event=>{event.preventDefault();openViewer(url);});rotate.className='thumb-rotate';rotate.type='button';rotate.textContent='↻';rotate.setAttribute('aria-label','Tourner la photo de 90 degrés');rotate.addEventListener('click',async()=>{rotate.disabled=true;await rotateStoredPhoto(photoId);URL.revokeObjectURL(url);await renderSectionPhotos(node,section);await renderPhotoAppendix();toast('Photo tournée');});remove.className='thumb-remove';remove.type='button';remove.textContent='×';remove.setAttribute('aria-label','Supprimer la photo');remove.addEventListener('click',async()=>{if(!confirm('Supprimer cette photo ?'))return;await deletePhoto(photoId);section.photos=section.photos.filter(id=>id!==photoId);URL.revokeObjectURL(url);save();renderSectionPhotos(node,section);renderPhotoAppendix();});tile.append(open,rotate,remove);wrap.append(tile);}
       }
       async function renderPhotos(node, item){
         const wrap = node.querySelector('.thumbs'); wrap.replaceChildren();
@@ -1002,9 +1023,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           const open = document.createElement('a'); open.className = 'thumb-open'; open.href = `#photo-${photoId}`; open.setAttribute('aria-label','Agrandir la photo');
           const img = document.createElement('img'); img.src = url; img.alt = 'Photo de constat'; img.onload = () => {};
           open.append(img); open.addEventListener('click', event => { event.preventDefault(); openViewer(url); });
+          const rotate=document.createElement('button');rotate.className='thumb-rotate';rotate.type='button';rotate.textContent='↻';rotate.setAttribute('aria-label','Tourner la photo de 90 degrés');rotate.addEventListener('click',async()=>{rotate.disabled=true;await rotateStoredPhoto(photoId);URL.revokeObjectURL(url);await renderPhotos(node,item);await renderPhotoAppendix();toast('Photo tournée');});
           const remove = document.createElement('button'); remove.className = 'thumb-remove'; remove.type = 'button'; remove.textContent = '×'; remove.setAttribute('aria-label','Supprimer la photo');
           remove.addEventListener('click', async () => { if(!confirm('Supprimer cette photo ?')) return; await deletePhoto(photoId); item.photos = item.photos.filter(id => id !== photoId); URL.revokeObjectURL(url); save(); renderPhotos(node,item); renderPhotoAppendix(); });
-          tile.append(open, remove); wrap.append(tile);
+          tile.append(open,rotate,remove); wrap.append(tile);
         }
       }
       async function renderPhotoAppendix(){
@@ -1027,19 +1049,19 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       }
       function openViewer(url){ const d = document.getElementById('photoViewer'); d.querySelector('img').src = url; d.showModal(); }
       async function renderCoverPhoto(){
-        const frame=document.getElementById('coverPhotoFrame'), block=frame.closest('.cover-photo-block'), empty=frame.querySelector('.cover-photo-empty'), open=document.getElementById('coverPhotoOpen'), remove=document.getElementById('coverPhotoRemove');
+        const frame=document.getElementById('coverPhotoFrame'), block=frame.closest('.cover-photo-block'), empty=frame.querySelector('.cover-photo-empty'), open=document.getElementById('coverPhotoOpen'), rotate=document.getElementById('coverPhotoRotate'), remove=document.getElementById('coverPhotoRemove');
         if(coverObjectUrl?.startsWith('blob:')) URL.revokeObjectURL(coverObjectUrl);
         coverObjectUrl=null;
         if(data.coverPhotoData) coverObjectUrl=data.coverPhotoData;
         else if(data.coverPhoto){const oldBlob=await getPhoto(data.coverPhoto);if(oldBlob){coverObjectUrl=await blobToDataURL(oldBlob);data.coverPhotoData=coverObjectUrl;data.coverPhoto='';save();}}
-        if(coverObjectUrl){open.querySelector('img').src=coverObjectUrl;open.hidden=false;empty.hidden=true;remove.hidden=false;frame.classList.add('has-photo');block.classList.add('has-cover-photo');}
-        else{open.hidden=true;open.querySelector('img').removeAttribute('src');empty.hidden=false;remove.hidden=true;frame.classList.remove('has-photo');block.classList.remove('has-cover-photo');}
+        if(coverObjectUrl){open.querySelector('img').src=coverObjectUrl;open.hidden=false;empty.hidden=true;rotate.hidden=false;remove.hidden=false;frame.classList.add('has-photo');block.classList.add('has-cover-photo');}
+        else{open.hidden=true;open.querySelector('img').removeAttribute('src');empty.hidden=false;rotate.hidden=true;remove.hidden=true;frame.classList.remove('has-photo');block.classList.remove('has-cover-photo');}
       }
       function renderSummary(){
         const rows=data.sections.flatMap(section=>section.items.map(item=>({item,sectionName:section.name}))).filter(entry=>(entry.item.equipment||'').trim());
         const body=document.getElementById('summaryRows'); body.replaceChildren();
-        if(!rows.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=3;td.className='summary-empty';td.textContent='Aucun équipement saisi';tr.append(td);body.append(tr);}
-        rows.forEach(({item,sectionName})=>{const tr=document.createElement('tr'), equipment=document.createElement('td'), location=document.createElement('td'), criticality=document.createElement('td'), label=document.createElement('span'), marker=document.createElement('i');equipment.textContent=item.equipment;location.textContent=[sectionName,item.location].filter(Boolean).join(' · ')||'—';label.className=`criticality ${item.status}`;label.append(marker,document.createTextNode(statusLabel(item.status)));criticality.append(label);tr.append(equipment,location,criticality);body.append(tr);});
+        if(!rows.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=4;td.className='summary-empty';td.textContent='Aucun équipement saisi';tr.append(td);body.append(tr);}
+        rows.forEach(({item,sectionName})=>{const tr=document.createElement('tr'),equipment=document.createElement('td'),model=document.createElement('td'),location=document.createElement('td'),criticality=document.createElement('td'),label=document.createElement('span'),marker=document.createElement('i');equipment.dataset.label='Équipement';model.dataset.label='Modèle';location.dataset.label='Localisation';criticality.dataset.label='Criticité';equipment.textContent=item.equipment;model.textContent=item.model||'—';location.textContent=[sectionName,item.location].filter(Boolean).join(' · ')||'—';[equipment,model,location].forEach(cell=>applyAdaptiveText(cell,cell.textContent));label.className=`criticality ${item.status}`;label.append(marker,document.createTextNode(statusLabel(item.status)));criticality.append(label);tr.append(equipment,model,location,criticality);body.append(tr);});
         const total=rows.length, counts={ok:0,vigilance:0,solution:0};rows.forEach(({item})=>counts[item.status in counts?item.status:'ok']++);
         const ok=total?counts.ok/total*100:0, vigilance=total?counts.vigilance/total*100:0, solution=total?counts.solution/total*100:0;
         const chart=document.getElementById('criticalityChart');chart.style.background=total?`conic-gradient(var(--green) 0 ${ok}%, var(--amber) ${ok}% ${ok+vigilance}%, var(--red) ${ok+vigilance}% 100%)`:'#e4e9e6';chart.setAttribute('aria-label',total?`Éléments satisfaisants ${Math.round(ok)} %, points de vigilance ${Math.round(vigilance)} %, solutions requises ${Math.round(solution)} %`:'Aucun équipement saisi');
@@ -1053,6 +1075,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
           img.onerror = reject; img.src = url;
         });
       }
+      function rotateImageBlob(blob){return new Promise((resolve,reject)=>{const image=new Image(),url=URL.createObjectURL(blob);image.onload=()=>{const canvas=document.createElement('canvas');canvas.width=image.naturalHeight;canvas.height=image.naturalWidth;const context=canvas.getContext('2d');context.translate(canvas.width/2,canvas.height/2);context.rotate(Math.PI/2);context.drawImage(image,-image.naturalWidth/2,-image.naturalHeight/2);canvas.toBlob(result=>{URL.revokeObjectURL(url);result?resolve(result):reject(new Error('Rotation impossible'));},'image/jpeg',.86);};image.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('Image illisible'));};image.src=url;});}
+      async function rotateStoredPhoto(photoId){const blob=await getPhoto(photoId);if(!blob)throw new Error('Photo introuvable');await putPhoto(photoId,await rotateImageBlob(blob));}
       function db(){ return new Promise((resolve,reject) => { const req=indexedDB.open(DB_NAME,1); req.onupgradeneeded=()=>req.result.createObjectStore('photos'); req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error); }); }
       async function photoStore(mode, action){ const database=await db(); return new Promise((resolve,reject)=>{ const tx=database.transaction('photos',mode); const req=action(tx.objectStore('photos')); req.onsuccess=()=>resolve(req.result); req.onerror=()=>reject(req.error); tx.oncomplete=()=>database.close(); }); }
       const putPhoto=(id,blob)=>photoStore('readwrite',s=>s.put(blob,id));
@@ -1172,8 +1196,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         return `<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblLayout w:type="fixed"/>${wordBorders}</w:tblPr>${grid}${header}${body}</w:tbl>${wordParagraph('', '', {spaceAfter:100})}`;
       }
       function wordSummaryTable(rows){
-        const widths=[3400,3200,2400],grid=`<w:tblGrid>${widths.map(width=>`<w:gridCol w:w="${width}"/>`).join('')}</w:tblGrid>`,header=`<w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>${['Équipement','Localisation','Criticité'].map((value,index)=>wordCell(value,{width:widths[index],fill:'087A3E',color:'FFFFFF',bold:true,center:true,size:17})).join('')}</w:tr>`;
-        const body=rows.map(row=>{const status=row[2],fill=status==='Solution requise'?'FDE8E8':status==='Point de vigilance'?'FFF3CC':'E5F5EA',color=status==='Solution requise'?'B21F1F':status==='Point de vigilance'?'8A6500':'087A3E';return `<w:tr><w:trPr><w:cantSplit/></w:trPr>${wordCell(row[0],{width:widths[0],fill:'FFFFFF',size:17})}${wordCell(row[1],{width:widths[1],fill:'FFFFFF',size:17})}${wordCell(status,{width:widths[2],fill,color,bold:true,center:true,size:16})}</w:tr>`;}).join('');
+        const widths=[2200,1900,2800,2100],grid=`<w:tblGrid>${widths.map(width=>`<w:gridCol w:w="${width}"/>`).join('')}</w:tblGrid>`,header=`<w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>${['Équipement','Modèle','Localisation','Criticité'].map((value,index)=>wordCell(value,{width:widths[index],fill:'087A3E',color:'FFFFFF',bold:true,center:true,size:16})).join('')}</w:tr>`;
+        const body=rows.map(row=>{const status=row[3],fill=status==='Solution requise'?'FDE8E8':status==='Point de vigilance'?'FFF3CC':'E5F5EA',color=status==='Solution requise'?'B21F1F':status==='Point de vigilance'?'8A6500':'087A3E';return `<w:tr><w:trPr><w:cantSplit/></w:trPr>${wordCell(row[0],{width:widths[0],fill:'FFFFFF',size:15})}${wordCell(row[1]||'—',{width:widths[1],fill:'FFFFFF',size:15})}${wordCell(row[2],{width:widths[2],fill:'FFFFFF',size:15})}${wordCell(status,{width:widths[3],fill,color,bold:true,center:true,size:15})}</w:tr>`;}).join('');
         return `<w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblLayout w:type="fixed"/>${wordBorders}</w:tblPr>${grid}${header}${body}</w:tbl>${wordParagraph('', '', {spaceAfter:100})}`;
       }
       function wordCriticalityChart(){
@@ -1215,7 +1239,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
             documentParts.push(wordConformityTable(section.conformity));
           }
         }
-        const summaryRows=data.sections.flatMap(section=>section.items.map(item=>[item.equipment,item.location||section.name,statusLabel(item.status)]));
+        const summaryRows=data.sections.flatMap(section=>section.items.map(item=>[item.equipment,item.model,item.location||section.name,statusLabel(item.status)]));
         documentParts.push(wordParagraph('Synthèse','Heading1',{pageBreakBefore:true,color:'087A3E',size:28,spaceAfter:160}));
         documentParts.push(wordSummaryTable(summaryRows));
         const chart=wordCriticalityChart();if(chart){const relId=`rId${relationships.length+3}`;relationships.push({id:relId,target:'media/criticite.png'});media.push({path:'word/media/criticite.png',base64:chart.split(',')[1]||''});documentParts.push(wordImageDrawing(relId,99,'Répartition des équipements par criticité',4800000,2240000));}
@@ -1285,6 +1309,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       document.getElementById('regulatoryText').addEventListener('input', e => { data.regulatoryText=e.target.value;updateProjectNameDisplays();save(); });
       document.getElementById('projectName').addEventListener('input', e => { data.projectName=e.target.value;updateProjectNameDisplays();save(); });
       const addCoverPhoto=async e=>{const file=e.target.files[0];if(!file)return;try{const blob=await resizeImage(file,1200,.76),encoded=await blobToDataURL(blob),previous=data.coverPhoto;data.coverPhotoData=encoded;data.coverPhoto='';if(previous)await deletePhoto(previous);save();await renderCoverPhoto();toast('Photo du chantier ajoutée');}catch{toast('Impossible d’enregistrer cette photo');}e.target.value='';};document.getElementById('coverPhotoInput').addEventListener('change',addCoverPhoto);document.getElementById('coverPhotoGalleryInput').addEventListener('change',addCoverPhoto);
+      document.getElementById('coverPhotoRotate').addEventListener('click',async()=>{try{let blob=data.coverPhotoData?dataUrlToBlob(data.coverPhotoData):data.coverPhoto?await getPhoto(data.coverPhoto):null;if(!blob)return;blob=await rotateImageBlob(blob);data.coverPhotoData=await blobToDataURL(blob);if(data.coverPhoto)await deletePhoto(data.coverPhoto);data.coverPhoto='';save();await renderCoverPhoto();toast('Photo du chantier tournée');}catch{toast('Rotation de la photo impossible');}});
       document.getElementById('coverPhotoOpen').addEventListener('click',()=>{if(coverObjectUrl)openViewer(coverObjectUrl);});
       document.getElementById('coverPhotoRemove').addEventListener('click',async()=>{if((!data.coverPhoto&&!data.coverPhotoData)||!confirm('Supprimer la photo du chantier ?'))return;if(data.coverPhoto)await deletePhoto(data.coverPhoto);data.coverPhoto='';data.coverPhotoData='';save();renderCoverPhoto();});
       document.getElementById('visitDate').addEventListener('input', e => { data.visitDate=e.target.value; save(); });
