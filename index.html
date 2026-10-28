@@ -206,6 +206,10 @@
     .thumb { position: relative; aspect-ratio: 1; min-width: 0; }
     .thumb-open { display: block; width: 100%; height: 100%; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: #edf1ee; cursor: zoom-in; }
     .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .quote-thumb .thumb-open { position: relative; border: 2px solid var(--green); background: #fff; cursor: pointer; }
+    .quote-thumb canvas { display: block; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+    .quote-thumb-badge { position: absolute; right: 4px; top: 4px; padding: 3px 6px; border-radius: 5px; background: var(--green-dark); color: #fff; font-size: 10px; font-weight: 900; }
+    .quote-thumb-name { position: absolute; inset: auto 3px 3px; padding: 3px 4px; overflow: hidden; border-radius: 4px; background: rgba(255,255,255,.92); color: var(--green-dark); font-size: 9px; font-weight: 800; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
     .thumb-remove {
       position: absolute; top: 4px; right: 4px; width: 28px; height: 28px; padding: 0;
       border: 0; border-radius: 50%; background: rgba(0,0,0,.72); color: #fff; font-weight: 900; cursor: pointer;
@@ -698,6 +702,7 @@ const pdfWorkerBytes=Uint8Array.from(atob('LyoqCiAqIEBsaWNzdGFydCBUaGUgZm9sbG93a
 globalThis.pdfjsLib.GlobalWorkerOptions.workerSrc=URL.createObjectURL(new Blob([pdfWorkerBytes],{type:'text/javascript'}));
 globalThis.dispatchEvent(new Event('pdfjs-ready'));
 </script>
+  <script src="lib/ocr/tesseract.min.js"></script>
   <script>
     (() => {
       'use strict';
@@ -1082,7 +1087,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
           }
           event.target.value = ''; save(); renderPhotos(node, item); renderPhotoAppendix();
         };node.querySelectorAll('.photo-input,.photo-gallery-input').forEach(input=>input.addEventListener('change',addItemPhotos));
-        node.querySelector('.quote-input').addEventListener('change',async event=>{const file=event.target.files[0];event.target.value='';if(!file)return;if(file.type!=='application/pdf'&&!file.name.toLowerCase().endsWith('.pdf')){toast('Sélectionnez un fichier PDF');return;}try{const quoteId=uid(),previous=item.quoteId;await putPhoto(quoteId,file);item.quoteId=quoteId;item.quoteName=file.name||'Devis.pdf';item.quoteBusinessCode='';item.quoteTotalHT='';item.quoteMetadataState='extracting';if(previous)await deletePhoto(previous);save();renderQuoteSummary();await renderQuote(node,item);const metadata=await extractQuoteMetadata(file);item.quoteBusinessCode=metadata.businessCode;item.quoteTotalHT=metadata.totalHT;item.quoteMetadataState='done';save();syncQuoteMetadataEditor(item);renderQuoteSummary();await renderPhotoAppendix();toast('Devis ajouté et analysé');}catch(error){console.error(error);item.quoteMetadataState=item.quoteId?'error':'';save();renderQuoteSummary();toast(item.quoteId?'Devis ajouté, mais informations non détectées':'Impossible d’enregistrer ce devis');}});
+        node.querySelector('.quote-input').addEventListener('change',async event=>{const file=event.target.files[0];event.target.value='';if(!file)return;if(file.type!=='application/pdf'&&!file.name.toLowerCase().endsWith('.pdf')){toast('Sélectionnez un fichier PDF');return;}try{const quoteId=uid(),previous=item.quoteId;await putPhoto(quoteId,file);item.quoteId=quoteId;item.quoteName=file.name||'Devis.pdf';item.quoteBusinessCode='';item.quoteTotalHT='';item.quoteMetadataState='extracting';if(previous)await deletePhoto(previous);save();renderQuoteSummary();await renderQuote(node,item);await renderPhotos(node,item);const metadata=await extractQuoteMetadata(file);item.quoteBusinessCode=metadata.businessCode;item.quoteTotalHT=metadata.totalHT;item.quoteMetadataState='done';save();syncQuoteMetadataEditor(item);renderQuoteSummary();await renderPhotoAppendix();toast('Devis ajouté et analysé');}catch(error){console.error(error);item.quoteMetadataState=item.quoteId?'error':'';save();renderQuoteSummary();toast(item.quoteId?'Devis ajouté, mais informations non détectées':'Impossible d’enregistrer ce devis');}});
         node.querySelector('.delete-item').addEventListener('click', async () => {
           if (!confirm(`Supprimer « ${item.equipment || 'cet équipement'} » ?`)) return;
           for (const assetId of [...item.photos,item.quoteId].filter(Boolean)) await deletePhoto(assetId);
@@ -1094,7 +1099,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
         const wrap=node.querySelector('.quote-preview'),count=node.querySelector('.quote-count');wrap.replaceChildren();count.textContent=item.quoteId?'(1)':'';if(node._quoteUrl){URL.revokeObjectURL(node._quoteUrl);node._quoteUrl='';}
         if(!item.quoteId){const empty=document.createElement('div');empty.className='empty-photos';empty.textContent='Aucun devis importé pour cet équipement';wrap.append(empty);return;}
         const blob=await getPhoto(item.quoteId);if(!blob){const missing=document.createElement('div');missing.className='empty-photos';missing.textContent='Le fichier du devis est introuvable';wrap.append(missing);return;}
-        const url=URL.createObjectURL(blob),card=document.createElement('div'),icon=document.createElement('span'),name=document.createElement('strong'),open=document.createElement('a'),remove=document.createElement('button');node._quoteUrl=url;card.className='quote-card';icon.className='quote-icon';icon.textContent='PDF';name.textContent=item.quoteName||'Devis.pdf';open.href=url;open.target='_blank';open.rel='noopener';open.textContent='Ouvrir';open.setAttribute('aria-label',`Ouvrir le devis ${name.textContent}`);remove.className='quote-remove';remove.type='button';remove.textContent='Supprimer';remove.addEventListener('click',async()=>{if(!confirm(`Supprimer le devis « ${name.textContent} » ?`))return;await deletePhoto(item.quoteId);item.quoteId='';item.quoteName='';item.quoteBusinessCode='';item.quoteTotalHT='';item.quoteMetadataState='';save();renderQuoteSummary();await renderQuote(node,item);await renderPhotoAppendix();toast('Devis supprimé');});card.append(icon,name,open,remove);wrap.append(card);
+        const url=URL.createObjectURL(blob),card=document.createElement('div'),icon=document.createElement('span'),name=document.createElement('strong'),open=document.createElement('a'),remove=document.createElement('button');node._quoteUrl=url;card.className='quote-card';icon.className='quote-icon';icon.textContent='PDF';name.textContent=item.quoteName||'Devis.pdf';open.href=url;open.target='_blank';open.rel='noopener';open.textContent='Ouvrir';open.setAttribute('aria-label',`Ouvrir le devis ${name.textContent}`);remove.className='quote-remove';remove.type='button';remove.textContent='Supprimer';remove.addEventListener('click',async()=>{if(!confirm(`Supprimer le devis « ${name.textContent} » ?`))return;await deletePhoto(item.quoteId);item.quoteId='';item.quoteName='';item.quoteBusinessCode='';item.quoteTotalHT='';item.quoteMetadataState='';save();renderQuoteSummary();await renderQuote(node,item);await renderPhotos(node,item);await renderPhotoAppendix();toast('Devis supprimé');});card.append(icon,name,open,remove);wrap.append(card);
         const editor=document.createElement('div'),codeLabel=document.createElement('label'),codeInput=document.createElement('input'),totalLabel=document.createElement('label'),totalInput=document.createElement('input'),help=document.createElement('p');editor.className='quote-meta-editor';codeLabel.textContent='Code affaire';codeInput.type='text';codeInput.value=item.quoteBusinessCode||'';codeInput.placeholder='Ex. DV2601028';totalLabel.textContent='Montant total HT';totalInput.type='text';totalInput.inputMode='decimal';totalInput.value=item.quoteTotalHT||'';totalInput.placeholder='Ex. 838,80';help.className='quote-meta-help';help.textContent='Ces valeurs sont détectées automatiquement. Vous pouvez les corriger ici si le devis est un scan ou si la lecture est incomplète.';const updateMetadata=()=>{item.quoteBusinessCode=codeInput.value.trim();item.quoteTotalHT=totalInput.value.trim();item.quoteMetadataState='done';save();renderQuoteSummary();};codeInput.addEventListener('input',updateMetadata);totalInput.addEventListener('input',updateMetadata);codeLabel.append(codeInput);totalLabel.append(totalInput);editor.append(codeLabel,totalLabel,help);wrap.append(editor);
       }
       async function renderSectionPhotos(node,section){
@@ -1105,7 +1110,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
       async function renderPhotos(node, item){
         const wrap = node.querySelector('.thumbs'); wrap.replaceChildren();
         node.querySelector('.photo-count').textContent = item.photos.length ? `(${item.photos.length})` : '';
-        if (!item.photos.length) { const empty = document.createElement('div'); empty.className = 'empty-photos'; empty.textContent = 'Aucune photo pour cet équipement'; wrap.append(empty); return; }
+        if (!item.photos.length&&!item.quoteId) { const empty = document.createElement('div'); empty.className = 'empty-photos'; empty.textContent = 'Aucune photo pour cet équipement'; wrap.append(empty); return; }
         for (const photoId of item.photos) {
           const blob = await getPhoto(photoId); if (!blob) continue;
           const url = URL.createObjectURL(blob); const tile = document.createElement('div'); tile.className = 'thumb';
@@ -1117,6 +1122,11 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
           remove.addEventListener('click', async () => { if(!confirm('Supprimer cette photo ?')) return; await deletePhoto(photoId); item.photos = item.photos.filter(id => id !== photoId); URL.revokeObjectURL(url); save(); renderPhotos(node,item); renderPhotoAppendix(); });
           tile.append(open,rotate,remove); wrap.append(tile);
         }
+        if(item.quoteId)await renderQuoteThumbnail(node,item,wrap);
+      }
+      async function renderQuoteThumbnail(node,item,wrap){
+        const blob=await getPhoto(item.quoteId);if(!blob)return;const tile=document.createElement('div'),open=document.createElement('a'),canvas=document.createElement('canvas'),badge=document.createElement('span'),name=document.createElement('span');tile.className='thumb quote-thumb';open.className='thumb-open';open.href=`#quote-${item.quoteId}`;open.setAttribute('aria-label',`Aller à l’annexe du devis ${item.quoteName||''}`);badge.className='quote-thumb-badge';badge.textContent='DEVIS';name.className='quote-thumb-name';name.textContent=item.quoteName||'Devis PDF';open.append(canvas,badge,name);tile.append(open);wrap.append(tile);open.addEventListener('click',event=>{if(!window.matchMedia('print').matches){event.preventDefault();node.querySelector('.tab[data-tab="quote"]')?.click();node.scrollIntoView({behavior:'smooth',block:'center'});}});
+        try{const pdfjs=await waitForPdfRenderer(),documentPdf=await pdfjs.getDocument({data:new Uint8Array(await blob.arrayBuffer())}).promise,page=await documentPdf.getPage(1),base=page.getViewport({scale:1}),viewport=page.getViewport({scale:Math.max(.25,180/base.width)}),context=canvas.getContext('2d',{alpha:false});canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);await page.render({canvasContext:context,viewport}).promise;}catch(error){console.error(error);canvas.width=160;canvas.height=210;const context=canvas.getContext('2d');context.fillStyle='#fff';context.fillRect(0,0,canvas.width,canvas.height);context.fillStyle='#087d3d';context.font='bold 26px Arial';context.textAlign='center';context.fillText('PDF',canvas.width/2,canvas.height/2);}
       }
       function waitForPdfRenderer(){
         if(window.pdfjsLib?.getDocument)return Promise.resolve(window.pdfjsLib);
@@ -1154,6 +1164,19 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
         for(const row of rows.filter(entry=>/\bcode\s+affaire\b/i.test(entry.text))){const label=row.parts.find(part=>/code\s+affaire/i.test(part.text))||row.parts[0],candidate=row.parts.filter(part=>part.x>label.x+Math.min(label.width,20)&&valid.test(cleanQuoteCode(part.text))).sort((a,b)=>a.x-b.x)[0],code=cleanQuoteCode(candidate?.text);if(code)return code;}
         return '';
       }
+      function quoteMetadataFromOcrText(text){
+        const lines=String(text||'').split(/\r?\n/).map(line=>line.replace(/\s+/g,' ').trim()).filter(Boolean),flat=lines.join(' ');
+        const codePatterns=[/(?:code\s+)?affaire\s*[:;=-]?\s*([A-Z]{1,4}[A-Z0-9._\/-]{4,})/i,/\b(DV\s*\d{6,})\b/i];
+        let businessCode='';for(const pattern of codePatterns){businessCode=cleanQuoteCode(flat.match(pattern)?.[1]?.replace(/\s+/g,''));if(businessCode)break;}
+        const monetaryAmounts=value=>[...String(value).matchAll(/(?<![A-Z0-9])\d{1,3}(?:[ .\u00a0\u202f]\d{3})*[,.]\d{2}/gi)].map(match=>match[0]);
+        let totalHT='';for(let index=0;index<lines.length;index++){if(!/total\s*h[rt]/i.test(lines[index]))continue;const windowText=lines.slice(index,index+4).join(' '),afterLabel=windowText.split(/total\s*h[rt]\s*[:;=-]?/i)[1]||'',amounts=monetaryAmounts(afterLabel);if(amounts.length){totalHT=cleanQuoteAmount(amounts[0]);break;}}
+        if(!totalHT){const finalTotalLine=lines.find(line=>/^total\b(?!\s*h[rt])/i.test(line));totalHT=cleanQuoteAmount(monetaryAmounts(finalTotalLine)[0]);}
+        return {businessCode,totalHT};
+      }
+      async function extractQuoteMetadataOcr(documentPdf){
+        if(!window.Tesseract?.createWorker)throw new Error('Module OCR indisponible');toast('Devis scanné : analyse OCR en cours…');const root=new URL('lib/ocr/',location.href),worker=await window.Tesseract.createWorker('eng',window.Tesseract.OEM.LSTM_ONLY,{workerPath:new URL('worker.min.js',root).href,corePath:new URL('core/',root).href,langPath:new URL('lang/',root).href.replace(/\/$/,'')});
+        try{let combined='';for(let pageNumber=1;pageNumber<=Math.min(2,documentPdf.numPages);pageNumber++){const page=await documentPdf.getPage(pageNumber),viewport=page.getViewport({scale:2.4}),canvas=document.createElement('canvas'),context=canvas.getContext('2d',{alpha:false});canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);context.fillStyle='#fff';context.fillRect(0,0,canvas.width,canvas.height);await page.render({canvasContext:context,viewport}).promise;const result=await worker.recognize(canvas);combined+=`\n${result.data.text||''}`;}return quoteMetadataFromOcrText(combined);}finally{await worker.terminate();}
+      }
       async function extractQuoteMetadata(blob){
         const pdfjs=await waitForPdfRenderer(),documentPdf=await pdfjs.getDocument({data:new Uint8Array(await blob.arrayBuffer())}).promise,pages=[];
         for(let pageNumber=1;pageNumber<=documentPdf.numPages;pageNumber++){const page=await documentPdf.getPage(pageNumber),content=await page.getTextContent();pages.push(pdfTextRows(content.items));}
@@ -1164,20 +1187,21 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
         const totalPatterns=[/(?:montant\s+)?total(?:\s+g[eé]n[eé]ral)?\s*h\.?\s*t\.?\s*[:=-]?\s*([0-9][0-9\s\u00a0\u202f.,]*)(?:\s*(?:€|eur))?/ig,/([0-9][0-9\s\u00a0\u202f.,]*)\s*(?:€|eur)?\s*(?:montant\s+)?total(?:\s+g[eé]n[eé]ral)?\s*h\.?\s*t\.?/ig];
         let totalHT='';for(const pattern of totalPatterns){let match;while((match=pattern.exec(flat))!==null){const candidate=cleanQuoteAmount(match[1]);if(candidate)totalHT=candidate;}if(totalHT)break;}
         if(!totalHT)for(const rows of pages){totalHT=quoteAmountBelowTotal(rows);if(totalHT)break;}
+        if((!businessCode||!totalHT)&&text.trim().length<80){const ocr=await extractQuoteMetadataOcr(documentPdf);businessCode||=ocr.businessCode;totalHT||=ocr.totalHT;}
         return {businessCode,totalHT};
       }
       async function refreshQuoteMetadata(){
         if(quoteMetadataRefreshRunning)return;const pending=data.sections.flatMap(section=>section.items).filter(item=>item.quoteId&&(!item.quoteMetadataState||item.quoteMetadataState==='pending'));if(!pending.length)return;quoteMetadataRefreshRunning=true;
         try{for(const item of pending){item.quoteMetadataState='extracting';save();renderQuoteSummary();try{const blob=await getPhoto(item.quoteId);if(!blob)throw new Error('Devis introuvable');const metadata=await extractQuoteMetadata(blob);item.quoteBusinessCode=metadata.businessCode;item.quoteTotalHT=metadata.totalHT;item.quoteMetadataState='done';}catch(error){console.error(error);item.quoteMetadataState='error';}save();syncQuoteMetadataEditor(item);renderQuoteSummary();}}finally{quoteMetadataRefreshRunning=false;}
       }
-      async function renderQuotePdf(blob,container,url){
+      async function renderQuotePdf(blob,container,url,internalTarget){
         const loading=document.createElement('div');loading.className='quote-loading';loading.textContent='Chargement du devis…';container.replaceChildren(loading);
         try{
           const pdfjs=await waitForPdfRenderer(),bytes=new Uint8Array(await blob.arrayBuffer()),documentPdf=await pdfjs.getDocument({data:bytes}).promise;
           container.replaceChildren();
           for(let pageNumber=1;pageNumber<=documentPdf.numPages;pageNumber++){
             const pdfPage=await documentPdf.getPage(pageNumber),base=pdfPage.getViewport({scale:1}),scale=Math.max(1.25,Math.min(2,1400/base.width)),viewport=pdfPage.getViewport({scale}),link=document.createElement('a'),canvas=document.createElement('canvas'),badge=document.createElement('span'),context=canvas.getContext('2d',{alpha:false});
-            link.className='quote-page-link';link.href=url;link.target='_blank';link.rel='noopener';link.setAttribute('aria-label',`Ouvrir le devis seul - page ${pageNumber}`);canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);badge.className='quote-page-number';badge.textContent=`Page ${pageNumber} / ${documentPdf.numPages}`;link.append(canvas,badge);container.append(link);await pdfPage.render({canvasContext:context,viewport}).promise;
+            link.className='quote-page-link';link.href=internalTarget;link.setAttribute('aria-label',`Afficher le devis - page ${pageNumber}`);link.addEventListener('click',event=>{if(!window.matchMedia('print').matches){event.preventDefault();window.open(url,'_blank','noopener');}});canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);badge.className='quote-page-number';badge.textContent=`Page ${pageNumber} / ${documentPdf.numPages}`;link.append(canvas,badge);container.append(link);await pdfPage.render({canvasContext:context,viewport}).promise;
           }
         }catch(error){
           console.error(error);const fallback=document.createElement('div'),link=document.createElement('a');fallback.className='quote-render-error';link.href=url;link.target='_blank';link.rel='noopener';link.textContent='L’aperçu ne peut pas être affiché. Ouvrir le devis PDF';fallback.append(link);container.replaceChildren(fallback);
@@ -1204,7 +1228,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
         for(const {section,item} of quotes){
           const blob=await getPhoto(item.quoteId);if(!blob)continue;
           const url=URL.createObjectURL(blob),sheet=document.createElement('article'),title=document.createElement('h2'),context=document.createElement('p'),documentFrame=document.createElement('div'),pages=document.createElement('div'),returnLink=document.createElement('a'),safeItemId=item.id.replace(/[^a-zA-Z0-9_-]/g,''),target=`#equipment-${safeItemId}`;
-          appendixObjectUrls.push(url);sheet.className='quote-sheet';sheet.id=`quote-${item.quoteId}`;title.textContent=`Devis : ${item.equipment||'Équipement'}`;context.textContent=[item.quoteName,item.brand&&`Marque : ${item.brand}`,item.model&&`Modèle : ${item.model}`,section.name,item.location].filter(Boolean).join(' · ');documentFrame.className='quote-document';pages.className='quote-pages';documentFrame.append(pages);returnLink.className='quote-return-link';returnLink.href=target;returnLink.textContent='↩ Retour à l’équipement concerné';sheet.append(title,context,documentFrame,returnLink);appendix.append(sheet);await renderQuotePdf(blob,pages,url);
+          appendixObjectUrls.push(url);sheet.className='quote-sheet';sheet.id=`quote-${item.quoteId}`;title.textContent=`Devis : ${item.equipment||'Équipement'}`;context.textContent=[item.quoteName,item.brand&&`Marque : ${item.brand}`,item.model&&`Modèle : ${item.model}`,section.name,item.location].filter(Boolean).join(' · ');documentFrame.className='quote-document';pages.className='quote-pages';documentFrame.append(pages);returnLink.className='quote-return-link';returnLink.href=target;returnLink.textContent='↩ Retour à l’équipement concerné';sheet.append(title,context,documentFrame,returnLink);appendix.append(sheet);await renderQuotePdf(blob,pages,url,`#quote-${item.quoteId}`);
         }
       }
       function openViewer(url){ const d = document.getElementById('photoViewer'); d.querySelector('img').src = url; d.showModal(); }
