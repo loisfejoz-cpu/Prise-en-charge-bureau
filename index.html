@@ -303,12 +303,11 @@
     .photo-sheet img { display: block; width: 100%; max-height: 230mm; object-fit: contain; }
     .photo-sheet.equipment-photo img { max-height: 215mm; padding: 1mm; border: 3mm solid var(--photo-status-color, var(--green)); border-radius: 3mm; }
     .quote-sheet { text-align: center; }
-    .quote-sheet h2 { margin: 0 0 4mm; color: var(--green-dark); font-size: 16pt; }
-    .quote-sheet p { margin: 0 0 4mm; color: var(--muted); }
     .quote-document { width: 100%; min-height: 240px; padding: 10px; overflow: hidden; border: 2mm solid var(--green); border-radius: 3mm; background: #eef3ef; }
     .quote-pages { display: grid; gap: 14px; }
     .quote-page-link { position: relative; display: grid; place-items: center; padding: 6px; overflow: hidden; border: 1px solid #cad5ce; border-radius: 6px; background: #fff; color: var(--green-dark); text-decoration: none; box-shadow: 0 4px 16px rgba(0,0,0,.08); }
     .quote-page-link canvas { display: block; width: 100%; height: auto; }
+    .quote-page-footer { display: block; width: 100%; margin-top: 7px; padding: 5px 7px; color: #405149; font-size: 10px; line-height: 1.25; text-align: center; }
     .quote-page-number { position: absolute; right: 8px; bottom: 8px; padding: 5px 8px; border-radius: 20px; background: rgba(8,122,62,.9); color: #fff; font-size: 11px; font-weight: 800; }
     .quote-loading, .quote-render-error { display: grid; min-height: 220px; place-items: center; padding: 20px; color: var(--green-dark); font-weight: 800; text-align: center; }
     .quote-render-error a { color: var(--green-dark); }
@@ -461,11 +460,12 @@
       .photo-sheet:last-child { break-after: auto; page-break-after: auto; }
       .quote-sheet { break-after: page; page-break-after: always; }
       .quote-sheet:last-child { break-after: auto; page-break-after: auto; }
-      .quote-document { min-height: 0; padding: 3mm; overflow: visible; }
+      .quote-document { min-height: 0; padding: 1.5mm; overflow: visible; }
       .quote-pages { display: block; }
-      .quote-page-link { min-height: 190mm; margin: 0 0 8mm; break-inside: avoid-page; page-break-inside: avoid; box-shadow: none; }
+      .quote-page-link { min-height: 247mm; margin: 0; padding: 1mm; break-inside: avoid-page; page-break-inside: avoid; box-shadow: none; }
       .quote-page-link:not(:last-child) { break-after: page; page-break-after: always; }
-      .quote-page-link canvas { width: auto; max-width: 100%; height: auto; max-height: 190mm; }
+      .quote-page-link canvas { width: auto; max-width: 100%; height: auto; max-height: 235mm; }
+      .quote-page-footer { margin-top: 1mm; padding: 1mm 2mm 0; font-size: 7.5pt; line-height: 1.15; }
       .quote-page-number { display: none !important; }
       .quote-print-card { display: none !important; }
       .print-project-footer { display: none !important; }
@@ -520,7 +520,7 @@
       <button class="btn" id="exportExcel" type="button">Exporter Excel</button>
       <label class="btn" for="importExcel">Importer Excel<input id="importExcel" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label>
       <button class="btn danger" id="resetReport" type="button">Réinitialiser</button>
-      <span class="app-version" title="Version de l’application">Version 15 - OCR</span>
+      <span class="app-version" title="Version de l’application">Version 16 - OCR</span>
     </div>
   </nav>
 
@@ -563,7 +563,7 @@
         <div class="pie-legend" id="criticalityLegend"></div>
       </div>
     </section>
-    <section class="quote-summary" aria-labelledby="quoteSummaryTitle">
+    <section class="quote-summary" id="quoteSummary" aria-labelledby="quoteSummaryTitle">
       <h2 id="quoteSummaryTitle">Synthèse des devis</h2>
       <div class="summary-table-wrap">
         <table class="summary-table">
@@ -710,7 +710,6 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
       'use strict';
       const STORAGE_KEY = 'sogitec-prise-en-charge-v2';
       const DB_NAME = 'sogitec-report-photos';
-      const PUBLIC_APP_URL = 'https://loisfejoz-cpu.github.io/Prise-en-charge-3/';
       let data = null;
       let saveTimer = null;
       let coverObjectUrl = null;
@@ -1139,7 +1138,6 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
           window.addEventListener('pdfjs-ready',ready,{once:true});
         });
       }
-      function quoteAccessUrl(quoteId){const base=/^https?:$/.test(location.protocol)?new URL(location.pathname,location.origin):new URL(PUBLIC_APP_URL);base.searchParams.set('openQuote',quoteId);return base.href;}
       function pdfTextRows(items){
         const rows=[];
         items.filter(item=>String(item.str||'').trim()).forEach(item=>{const x=Number(item.transform?.[4])||0,y=Number(item.transform?.[5])||0,width=Math.max(Number(item.width)||0,String(item.str).length*4),text=String(item.str).trim();let row=rows.find(candidate=>Math.abs(candidate.y-y)<2.5);if(!row){row={y,parts:[]};rows.push(row);}row.parts.push({x,y,width,text});});
@@ -1198,14 +1196,14 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
         if(quoteMetadataRefreshRunning)return;const pending=data.sections.flatMap(section=>section.items).filter(item=>item.quoteId&&(!item.quoteMetadataState||item.quoteMetadataState==='pending'));if(!pending.length)return;quoteMetadataRefreshRunning=true;
         try{for(const item of pending){item.quoteMetadataState='extracting';save();renderQuoteSummary();try{const blob=await getPhoto(item.quoteId);if(!blob)throw new Error('Devis introuvable');const metadata=await extractQuoteMetadata(blob);item.quoteBusinessCode=metadata.businessCode;item.quoteTotalHT=metadata.totalHT;item.quoteMetadataState='done';}catch(error){console.error(error);item.quoteMetadataState='error';}save();syncQuoteMetadataEditor(item);renderQuoteSummary();}}finally{quoteMetadataRefreshRunning=false;}
       }
-      async function renderQuotePdf(blob,container,url,externalTarget){
+      async function renderQuotePdf(blob,container,url,footerText){
         const loading=document.createElement('div');loading.className='quote-loading';loading.textContent='Chargement du devis…';container.replaceChildren(loading);
         try{
           const pdfjs=await waitForPdfRenderer(),bytes=new Uint8Array(await blob.arrayBuffer()),documentPdf=await pdfjs.getDocument({data:bytes}).promise;
           container.replaceChildren();
           for(let pageNumber=1;pageNumber<=documentPdf.numPages;pageNumber++){
-            const pdfPage=await documentPdf.getPage(pageNumber),base=pdfPage.getViewport({scale:1}),scale=Math.max(1.25,Math.min(2,1400/base.width)),viewport=pdfPage.getViewport({scale}),link=document.createElement('a'),canvas=document.createElement('canvas'),badge=document.createElement('span'),context=canvas.getContext('2d',{alpha:false});
-            link.className='quote-page-link';link.href=externalTarget;link.target='_blank';link.rel='noopener';link.setAttribute('aria-label',`Ouvrir le devis seul - page ${pageNumber}`);link.addEventListener('click',event=>{if(!window.matchMedia('print').matches){event.preventDefault();window.open(url,'_blank','noopener');}});canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);badge.className='quote-page-number';badge.textContent=`Page ${pageNumber} / ${documentPdf.numPages}`;link.append(canvas,badge);container.append(link);await pdfPage.render({canvasContext:context,viewport}).promise;
+            const pdfPage=await documentPdf.getPage(pageNumber),base=pdfPage.getViewport({scale:1}),scale=Math.max(1.25,Math.min(2,1400/base.width)),viewport=pdfPage.getViewport({scale}),link=document.createElement('a'),canvas=document.createElement('canvas'),badge=document.createElement('span'),footer=document.createElement('span'),context=canvas.getContext('2d',{alpha:false});
+            link.className='quote-page-link';link.href='#quoteSummary';link.setAttribute('aria-label',`Revenir à la synthèse des devis depuis la page ${pageNumber}`);canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);badge.className='quote-page-number';badge.textContent=`Page ${pageNumber} / ${documentPdf.numPages}`;footer.className='quote-page-footer';footer.textContent=footerText;link.append(canvas,badge,footer);container.append(link);await pdfPage.render({canvasContext:context,viewport}).promise;
           }
         }catch(error){
           console.error(error);const fallback=document.createElement('div'),link=document.createElement('a');fallback.className='quote-render-error';link.href=url;link.target='_blank';link.rel='noopener';link.textContent='L’aperçu ne peut pas être affiché. Ouvrir le devis PDF';fallback.append(link);container.replaceChildren(fallback);
@@ -1231,8 +1229,8 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
         const quotes=data.sections.flatMap(section=>section.items.filter(item=>item.quoteId).map(item=>({section,item})));
         for(const {section,item} of quotes){
           const blob=await getPhoto(item.quoteId);if(!blob)continue;
-          const url=URL.createObjectURL(blob),sheet=document.createElement('article'),title=document.createElement('h2'),context=document.createElement('p'),documentFrame=document.createElement('div'),pages=document.createElement('div'),returnLink=document.createElement('a'),safeItemId=item.id.replace(/[^a-zA-Z0-9_-]/g,''),target=`#equipment-${safeItemId}`;
-          appendixObjectUrls.push(url);sheet.className='quote-sheet';sheet.id=`quote-${item.quoteId}`;title.textContent=`Devis : ${item.equipment||'Équipement'}`;context.textContent=[item.quoteName,item.brand&&`Marque : ${item.brand}`,item.model&&`Modèle : ${item.model}`,section.name,item.location].filter(Boolean).join(' · ');documentFrame.className='quote-document';pages.className='quote-pages';documentFrame.append(pages);returnLink.className='quote-return-link';returnLink.href=target;returnLink.textContent='↩ Retour à l’équipement concerné';sheet.append(title,context,documentFrame,returnLink);appendix.append(sheet);await renderQuotePdf(blob,pages,url,quoteAccessUrl(item.quoteId));
+          const url=URL.createObjectURL(blob),sheet=document.createElement('article'),documentFrame=document.createElement('div'),pages=document.createElement('div'),footerText=[item.quoteName,item.equipment&&`Équipement : ${item.equipment}`,item.brand&&`Marque : ${item.brand}`,item.model&&`Modèle : ${item.model}`,section.name,item.location].filter(Boolean).join(' · ');
+          appendixObjectUrls.push(url);sheet.className='quote-sheet';sheet.id=`quote-${item.quoteId}`;documentFrame.className='quote-document';pages.className='quote-pages';documentFrame.append(pages);sheet.append(documentFrame);appendix.append(sheet);await renderQuotePdf(blob,pages,url,footerText);
         }
       }
       function openViewer(url){ const d = document.getElementById('photoViewer'); d.querySelector('img').src = url; d.showModal(); }
@@ -1277,7 +1275,6 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
       const putPhoto=(id,blob)=>photoStore('readwrite',s=>s.put(blob,id));
       const getPhoto=id=>photoStore('readonly',s=>s.get(id));
       const deletePhoto=id=>photoStore('readwrite',s=>s.delete(id));
-      async function openRequestedQuote(){const quoteId=new URLSearchParams(location.search).get('openQuote');if(!quoteId)return false;try{const blob=await getPhoto(quoteId);if(!blob)throw new Error('Ce devis n’est pas enregistré dans ce navigateur. Ouvrez le rapport depuis l’appareil qui a créé le PDF.');if(blob.type!=='application/pdf')throw new Error('Le fichier associé n’est pas un devis PDF.');const url=URL.createObjectURL(blob);location.replace(url);return true;}catch(error){alert(error.message||'Impossible d’ouvrir ce devis');return false;}}
       const blobToDataURL=blob=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error);reader.readAsDataURL(blob);});
       const xmlEscape=value=>String(value??'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;');
       const excelCol=index=>{let name='';for(let n=index+1;n;n=Math.floor((n-1)/26))name=String.fromCharCode(65+(n-1)%26)+name;return name;};
@@ -1534,7 +1531,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
       document.getElementById('resetReport').addEventListener('click', () => { if(!confirm('Réinitialiser toutes les saisies ? Les photos seront dissociées du rapport.')) return; data=clone(emptySeed); save(); load(); render(); toast('Rapport réinitialisé'); });
       const helpDialog=document.getElementById('conformityHelpDialog');helpDialog.querySelector('.help-dialog-close').addEventListener('click',()=>helpDialog.close());helpDialog.addEventListener('click',event=>{if(event.target===helpDialog)helpDialog.close();});
       const viewer=document.getElementById('photoViewer'); viewer.querySelector('.viewer-close').addEventListener('click',()=>viewer.close()); viewer.addEventListener('click',e=>{if(e.target===viewer||e.target.classList.contains('viewer'))viewer.close();});
-      fillSuggestions(); load(); render(); openRequestedQuote();
+      fillSuggestions(); load(); render();
     })();
   </script>
 </body>
