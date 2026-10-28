@@ -273,6 +273,7 @@
     .quote-summary { margin-top: 16px; padding: 16px; border-radius: 14px; background: #fff; border: 1px solid #b9d8c5; box-shadow: var(--shadow); }
     .quote-summary h2 { margin: 0 0 14px; color: var(--green-dark); font-size: 21px; text-transform: uppercase; }
     .quote-summary .summary-table th { background: #dff3e7; }
+    .quote-code-link { color: var(--green-dark); font-weight: 900; text-decoration: underline; text-underline-offset: 2px; }
     .summary-table-wrap { width: 100%; overflow-x: auto; }
     .summary-table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 680px; }
     .summary-table th, .summary-table td { padding: 10px; border: 1px solid var(--line); text-align: left; vertical-align: middle; }
@@ -384,6 +385,18 @@
         font-weight: 700;
       }
     }
+    @page quote {
+      size: A4 portrait;
+      margin: 10mm 10mm 18mm;
+      @bottom-left { content: ""; }
+      @bottom-right {
+        content: "Page " counter(page) " / " counter(pages);
+        color: #173f2b;
+        font-family: Arial, sans-serif;
+        font-size: 8pt;
+        font-weight: 700;
+      }
+    }
     @media print {
       * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       body { background: #fff; font-size: 10pt; }
@@ -458,14 +471,14 @@
       .photo-appendix:not(:empty) { display: block; break-before: page; page-break-before: always; }
       .photo-sheet { break-after: page; page-break-after: always; }
       .photo-sheet:last-child { break-after: auto; page-break-after: auto; }
-      .quote-sheet { break-after: page; page-break-after: always; }
+      .quote-sheet { page: quote; break-after: page; page-break-after: always; }
       .quote-sheet:last-child { break-after: auto; page-break-after: auto; }
-      .quote-document { min-height: 0; padding: 1.5mm; overflow: visible; }
+      .quote-document { min-height: 0; padding: 0; overflow: visible; border: 0; border-radius: 0; background: #fff; }
       .quote-pages { display: block; }
-      .quote-page-link { min-height: 247mm; margin: 0; padding: 1mm; break-inside: avoid-page; page-break-inside: avoid; box-shadow: none; }
+      .quote-page-link { min-height: 259mm; margin: 0; padding: 0; overflow: visible; border: 0; border-radius: 0; break-inside: avoid-page; page-break-inside: avoid; box-shadow: none; }
       .quote-page-link:not(:last-child) { break-after: page; page-break-after: always; }
-      .quote-page-link canvas { width: auto; max-width: 100%; height: auto; max-height: 235mm; }
-      .quote-page-footer { margin-top: 1mm; padding: 1mm 2mm 0; font-size: 7.5pt; line-height: 1.15; }
+      .quote-page-link canvas { width: auto; max-width: 100%; height: auto; max-height: 259mm; }
+      .quote-page-footer { position: absolute; left: 0; bottom: 0; width: 165mm; margin: 0; padding: 0; transform: translateY(8mm); background: #fff; color: #173f2b; font-size: 7.5pt; font-weight: 700; line-height: 1.15; text-align: left; }
       .quote-page-number { display: none !important; }
       .quote-print-card { display: none !important; }
       .print-project-footer { display: none !important; }
@@ -520,7 +533,7 @@
       <button class="btn" id="exportExcel" type="button">Exporter Excel</button>
       <label class="btn" for="importExcel">Importer Excel<input id="importExcel" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label>
       <button class="btn danger" id="resetReport" type="button">Réinitialiser</button>
-      <span class="app-version" title="Version de l’application">Version 16 - OCR</span>
+      <span class="app-version" title="Version de l’application">Version 17 - OCR</span>
     </div>
   </nav>
 
@@ -1102,7 +1115,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
         if(!item.quoteId){const empty=document.createElement('div');empty.className='empty-photos';empty.textContent='Aucun devis importé pour cet équipement';wrap.append(empty);return;}
         const blob=await getPhoto(item.quoteId);if(!blob){const missing=document.createElement('div');missing.className='empty-photos';missing.textContent='Le fichier du devis est introuvable';wrap.append(missing);return;}
         const url=URL.createObjectURL(blob),card=document.createElement('div'),icon=document.createElement('span'),name=document.createElement('strong'),open=document.createElement('a'),remove=document.createElement('button');node._quoteUrl=url;card.className='quote-card';icon.className='quote-icon';icon.textContent='PDF';name.textContent=item.quoteName||'Devis.pdf';open.href=url;open.target='_blank';open.rel='noopener';open.textContent='Ouvrir';open.setAttribute('aria-label',`Ouvrir le devis ${name.textContent}`);remove.className='quote-remove';remove.type='button';remove.textContent='Supprimer';remove.addEventListener('click',async()=>{if(!confirm(`Supprimer le devis « ${name.textContent} » ?`))return;await deletePhoto(item.quoteId);item.quoteId='';item.quoteName='';item.quoteBusinessCode='';item.quoteTotalHT='';item.quoteMetadataState='';save();renderQuoteSummary();await renderQuote(node,item);await renderPhotos(node,item);await renderPhotoAppendix();toast('Devis supprimé');});card.append(icon,name,open,remove);wrap.append(card);
-        const editor=document.createElement('div'),codeLabel=document.createElement('label'),codeInput=document.createElement('input'),totalLabel=document.createElement('label'),totalInput=document.createElement('input'),help=document.createElement('p');editor.className='quote-meta-editor';codeLabel.textContent='Code affaire';codeInput.type='text';codeInput.value=item.quoteBusinessCode||'';codeInput.placeholder='Ex. DV2601028';totalLabel.textContent='Montant total HT';totalInput.type='text';totalInput.inputMode='decimal';totalInput.value=item.quoteTotalHT||'';totalInput.placeholder='Ex. 838,80';help.className='quote-meta-help';help.textContent='Ces valeurs sont détectées automatiquement. Vous pouvez les corriger ici si le devis est un scan ou si la lecture est incomplète.';const updateMetadata=()=>{item.quoteBusinessCode=codeInput.value.trim();item.quoteTotalHT=totalInput.value.trim();item.quoteMetadataState='done';save();renderQuoteSummary();};codeInput.addEventListener('input',updateMetadata);totalInput.addEventListener('input',updateMetadata);codeLabel.append(codeInput);totalLabel.append(totalInput);editor.append(codeLabel,totalLabel,help);wrap.append(editor);
+        const editor=document.createElement('div'),codeLabel=document.createElement('label'),codeInput=document.createElement('input'),totalLabel=document.createElement('label'),totalInput=document.createElement('input'),help=document.createElement('p');editor.className='quote-meta-editor';codeLabel.textContent='Code affaire';codeInput.type='text';codeInput.value=item.quoteBusinessCode||'';codeInput.placeholder='Ex. DV2601028';totalLabel.textContent='Montant total HT';totalInput.type='text';totalInput.inputMode='decimal';totalInput.value=item.quoteTotalHT||'';totalInput.placeholder='Ex. 838,80';help.className='quote-meta-help';help.textContent='Ces valeurs sont détectées automatiquement. Vous pouvez les corriger ici si le devis est un scan ou si la lecture est incomplète.';const updateMetadata=()=>{item.quoteBusinessCode=codeInput.value.trim();item.quoteTotalHT=totalInput.value.trim();item.quoteMetadataState='done';save();syncQuoteMetadataEditor(item);renderQuoteSummary();};codeInput.addEventListener('input',updateMetadata);totalInput.addEventListener('input',updateMetadata);codeLabel.append(codeInput);totalLabel.append(totalInput);editor.append(codeLabel,totalLabel,help);wrap.append(editor);
       }
       async function renderSectionPhotos(node,section){
         const wrap=node.querySelector('.section-thumbs'),count=node.querySelector('.section-photo-count');wrap.replaceChildren();count.textContent=section.photos.length?`(${section.photos.length})`:'';
@@ -1127,7 +1140,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
         if(item.quoteId)await renderQuoteThumbnail(node,item,wrap);
       }
       async function renderQuoteThumbnail(node,item,wrap){
-        const blob=await getPhoto(item.quoteId);if(!blob)return;const tile=document.createElement('div'),open=document.createElement('a'),canvas=document.createElement('canvas'),badge=document.createElement('span'),name=document.createElement('span');tile.className='thumb quote-thumb';open.className='thumb-open';open.href=`#quote-${item.quoteId}`;open.setAttribute('aria-label',`Aller à l’annexe du devis ${item.quoteName||''}`);badge.className='quote-thumb-badge';badge.textContent='DEVIS';name.className='quote-thumb-name';name.textContent=item.quoteName||'Devis PDF';open.append(canvas,badge,name);tile.append(open);wrap.append(tile);open.addEventListener('click',event=>{if(!window.matchMedia('print').matches){event.preventDefault();node.querySelector('.tab[data-tab="quote"]')?.click();node.scrollIntoView({behavior:'smooth',block:'center'});}});
+        const blob=await getPhoto(item.quoteId);if(!blob)return;const tile=document.createElement('div'),open=document.createElement('a'),canvas=document.createElement('canvas'),badge=document.createElement('span'),name=document.createElement('span');tile.className='thumb quote-thumb';open.className='thumb-open';open.href=`#quote-${item.quoteId}`;open.setAttribute('aria-label',`Aller à l’annexe du devis ${item.quoteName||''}`);badge.className='quote-thumb-badge';badge.textContent='DEVIS';name.className='quote-thumb-name';name.textContent=item.quoteBusinessCode||item.quoteName||'Devis PDF';open.append(canvas,badge,name);tile.append(open);wrap.append(tile);open.addEventListener('click',event=>{if(!window.matchMedia('print').matches){event.preventDefault();node.querySelector('.tab[data-tab="quote"]')?.click();node.scrollIntoView({behavior:'smooth',block:'center'});}});
         try{const pdfjs=await waitForPdfRenderer(),documentPdf=await pdfjs.getDocument({data:new Uint8Array(await blob.arrayBuffer())}).promise,page=await documentPdf.getPage(1),base=page.getViewport({scale:1}),viewport=page.getViewport({scale:Math.max(.25,180/base.width)}),context=canvas.getContext('2d',{alpha:false});canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);await page.render({canvasContext:context,viewport}).promise;}catch(error){console.error(error);canvas.width=160;canvas.height=210;const context=canvas.getContext('2d');context.fillStyle='#fff';context.fillRect(0,0,canvas.width,canvas.height);context.fillStyle='#087d3d';context.font='bold 26px Arial';context.textAlign='center';context.fillText('PDF',canvas.width/2,canvas.height/2);}
       }
       function waitForPdfRenderer(){
@@ -1151,7 +1164,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
         const amount=String(value||'').replace(/[\u00a0\u202f]/g,' ').replace(/\s+/g,' ').trim().replace(/\s*(?:€|eur)\s*$/i,'').replace(/[\s,;:.]+$/,'');
         return /\d/.test(amount)?amount:'';
       }
-      function syncQuoteMetadataEditor(item){const safeId=item.id.replace(/[^a-zA-Z0-9_-]/g,''),inputs=document.getElementById(`equipment-${safeId}`)?.querySelectorAll('.quote-meta-editor input');if(inputs?.length===2){inputs[0].value=item.quoteBusinessCode||'';inputs[1].value=item.quoteTotalHT||'';}}
+      function syncQuoteMetadataEditor(item){const safeId=item.id.replace(/[^a-zA-Z0-9_-]/g,''),node=document.getElementById(`equipment-${safeId}`),inputs=node?.querySelectorAll('.quote-meta-editor input'),thumbName=node?.querySelector('.quote-thumb-name');if(inputs?.length===2){inputs[0].value=item.quoteBusinessCode||'';inputs[1].value=item.quoteTotalHT||'';}if(thumbName)thumbName.textContent=item.quoteBusinessCode||item.quoteName||'Devis PDF';}
       function quoteAmountBelowTotal(rows){
         const amountPattern=/^\s*\d{1,3}(?:[ .\u00a0\u202f]\d{3})*(?:[,.]\d{2})?\s*(?:€|eur)?\s*$/i;
         for(const labelRow of rows.filter(row=>/\btotal\s*h\.?\s*t\.?\b/i.test(row.text))){
@@ -1203,7 +1216,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
           container.replaceChildren();
           for(let pageNumber=1;pageNumber<=documentPdf.numPages;pageNumber++){
             const pdfPage=await documentPdf.getPage(pageNumber),base=pdfPage.getViewport({scale:1}),scale=Math.max(1.25,Math.min(2,1400/base.width)),viewport=pdfPage.getViewport({scale}),link=document.createElement('a'),canvas=document.createElement('canvas'),badge=document.createElement('span'),footer=document.createElement('span'),context=canvas.getContext('2d',{alpha:false});
-            link.className='quote-page-link';link.href='#quoteSummary';link.setAttribute('aria-label',`Revenir à la synthèse des devis depuis la page ${pageNumber}`);canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);badge.className='quote-page-number';badge.textContent=`Page ${pageNumber} / ${documentPdf.numPages}`;footer.className='quote-page-footer';footer.textContent=footerText;link.append(canvas,badge,footer);container.append(link);await pdfPage.render({canvasContext:context,viewport}).promise;
+            link.className='quote-page-link';link.href='#quoteSummary';link.dataset.footer=footerText;link.setAttribute('aria-label',`Revenir à la synthèse des devis depuis la page ${pageNumber}`);canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);badge.className='quote-page-number';badge.textContent=`Page ${pageNumber} / ${documentPdf.numPages}`;footer.className='quote-page-footer';footer.textContent=footerText;link.append(canvas,badge,footer);container.append(link);await pdfPage.render({canvasContext:context,viewport}).promise;
           }
         }catch(error){
           console.error(error);const fallback=document.createElement('div'),link=document.createElement('a');fallback.className='quote-render-error';link.href=url;link.target='_blank';link.rel='noopener';link.textContent='L’aperçu ne peut pas être affiché. Ouvrir le devis PDF';fallback.append(link);container.replaceChildren(fallback);
@@ -1259,7 +1272,7 @@ globalThis.dispatchEvent(new Event('pdfjs-ready'));
       function renderQuoteSummary(){
         const body=document.getElementById('quoteSummaryRows');if(!body)return;body.replaceChildren();const quotes=data.sections.flatMap(section=>section.items.filter(item=>item.quoteId).map(item=>({item,section})));
         if(!quotes.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=4;td.className='summary-empty';td.textContent='Aucun devis importé';tr.append(td);body.append(tr);return;}
-        quotes.forEach(({item})=>{const tr=document.createElement('tr'),equipment=document.createElement('td'),model=document.createElement('td'),code=document.createElement('td'),amount=document.createElement('td'),state=item.quoteMetadataState;equipment.dataset.label='Équipement';model.dataset.label='Modèle';code.dataset.label='Code affaire';amount.dataset.label='Montant total HT';equipment.textContent=item.equipment||'—';model.textContent=item.model||'—';code.textContent=state==='extracting'?'Analyse en cours…':state==='error'?'Lecture impossible':item.quoteBusinessCode||'Non détecté';amount.textContent=state==='extracting'?'Analyse en cours…':state==='error'?'Lecture impossible':item.quoteTotalHT?(item.quoteTotalHT.match(/(?:€|eur)$/i)?item.quoteTotalHT:`${item.quoteTotalHT} €`):'Non détecté';[equipment,model,code,amount].forEach(cell=>applyAdaptiveText(cell,cell.textContent));tr.append(equipment,model,code,amount);body.append(tr);});
+        quotes.forEach(({item})=>{const tr=document.createElement('tr'),equipment=document.createElement('td'),model=document.createElement('td'),code=document.createElement('td'),amount=document.createElement('td'),state=item.quoteMetadataState,safeId=item.id.replace(/[^a-zA-Z0-9_-]/g,'');equipment.dataset.label='Équipement';model.dataset.label='Modèle';code.dataset.label='Code affaire';amount.dataset.label='Montant total HT';equipment.textContent=item.equipment||'—';model.textContent=item.model||'—';const codeText=state==='extracting'?'Analyse en cours…':state==='error'?'Lecture impossible':item.quoteBusinessCode||'Non détecté';if(item.quoteBusinessCode&&state==='done'){const link=document.createElement('a');link.className='quote-code-link';link.href=`#equipment-${safeId}`;link.textContent=codeText;link.setAttribute('aria-label',`Revenir à l’équipement ${item.equipment||''}`);code.append(link);}else code.textContent=codeText;amount.textContent=state==='extracting'?'Analyse en cours…':state==='error'?'Lecture impossible':item.quoteTotalHT?(item.quoteTotalHT.match(/(?:€|eur)$/i)?item.quoteTotalHT:`${item.quoteTotalHT} €`):'Non détecté';[equipment,model,code,amount].forEach(cell=>applyAdaptiveText(cell,cell.textContent));tr.append(equipment,model,code,amount);body.append(tr);});
       }
       function resizeImage(file, maxSide, quality){
         return new Promise((resolve,reject) => {
